@@ -1,278 +1,149 @@
+"""Клиент OpenAI-совместимого API организаторов: chat, embeddings, rerank.
 
-import os
+Имена переменных окружения совпадают с официальным примером сабмита.
+Сбой эмбеддера или реранкера не останавливает работу: вызывающий код
+переходит на лексический поиск.
+"""
+
+from __future__ import annotations
+
+import logging
 import math
+import os
+import time
 from typing import Any
 
 import httpx
-from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 
-load_dotenv()
+def env(name: str, default: str = "") -> str:
+    value = os.getenv(name, "").strip()
+    return default if not value or value == name else value
+
+
+def env_int(name: str, default: int, low: int, high: int) -> int:
+    try:
+        return max(low, min(high, int(env(name))))
+    except ValueError:
+        return default
+
+
+def env_float(name: str, default: float) -> float:
+    try:
+        return max(0.0, min(2.0, float(env(name))))
+    except ValueError:
+        return default
 
 
 class AIClient:
-    """
-    Клиент для взаимодействия с API моделей:
-    - Embeddings
-    - Reranker
-    - Chat Completions
-    """
+    def __init__(self, transport: httpx.BaseTransport | None = None):
+        self.base_url = (env("LLM_BASE_URL") or env("BASE_URL") or env("OPENAI_BASE_URL")).rstrip("/")
+        self.llm_key = env("LLM_API_KEY") or env("OPENAI_API_KEY")
+        self.embed_key = env("EMBEDDER_API_KEY") or self.llm_key
+        self.rerank_key = env("RERANKER_API_KEY") or self.llm_key
+        self.llm_model = env("LLM_MODEL") or env("GEN_MODEL") or env("OPENAI_MODEL", "deepseek/deepseek-v4.1-flash")
+        self.embedding_model = env("EMB_MODEL", "baai/bge-m3")
+        self.reranker_model = env("RERANKER_MODEL", "qwen/qwen3-reranker-8b")
+        self.temperature = env_float("TEMPERATURE", 0.0)
+        self.max_tokens = env_int("MAX_TOKENS", 1500, 256, 8192)
+        self.retries = env_int("LLM_RETRIES", 2, 0, 5)
+        self.http = httpx.Client(timeout=httpx.Timeout(env_int("LLM_TIMEOUT", 90, 5, 600), connect=15.0), transport=transport)
+        self.errors: dict[str, str] = {}
 
-    def __init__(self):
-        self.base_url = (
-            os.getenv("LLM_BASE_URL")
-            or os.getenv("BASE_URL")
-            or os.getenv("OPENAI_BASE_URL")
-            or ""
-        ).rstrip("/")
+    @property
+    def has_llm(self) -> bool:
+        return bool(self.base_url and self.llm_key)
 
-        self.llm_key = (
-            os.getenv("LLM_API_KEY")
-            or os.getenv("OPENAI_API_KEY")
-        )
+    @property
+    def has_embeddings(self) -> bool:
+        return bool(self.base_url and self.embed_key) and env("DISABLE_EMBEDDINGS") != "1"
 
-        self.embed_key = (
-            os.getenv("EMBEDDER_API_KEY")
-            or self.llm_key
-        )
+    @property
+    def has_reranker(self) -> bool:
+        return bool(self.base_url and self.rerank_key) and env("DISABLE_RERANKER") != "1"
 
-        self.rerank_key = (
-            os.getenv("RERANKER_API_KEY")
-            or self.llm_key
-        )
-
-        self.llm_model = (
-            os.getenv("LLM_MODEL")
-            or os.getenv("GEN_MODEL")
-            or os.getenv(
-                "OPENAI_MODEL",
-                "deepseek/deepseek-v4.1-flash",
-            )
-        )
-
-        self.embedding_model = os.getenv(
-            "EMB_MODEL",
-            "baai/bge-m3",
-        )
-
-        self.reranker_model = os.getenv(
-            "RERANKER_MODEL",
-            "cohere/rerank-5-fast",
-        )
-
-        self.http = httpx.Client(timeout=60.0)
-
-    def close(self):
-        """Закрывает HTTP-клиент."""
+    def close(self) -> None:
         self.http.close()
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
-
-    def _post(
-        self,
-        endpoint: str,
-        payload: dict[str, Any],
-        api_key: str | None,
-    ) -> dict[str, Any]:
-        """Отправляет POST-запрос к API."""
-
-        if not self.base_url:
-            raise RuntimeError(
-                "Не задан адрес API. "
-                "Укажите LLM_BASE_URL или BASE_URL."
-            )
-
-        if not api_key:
-            raise RuntimeError(
-                f"Не задан API-ключ для {endpoint}."
-            )
-
-        response = self.http.post(
-            f"{self.base_url}{endpoint}",
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-        )
-
-        response.raise_for_status()
-
-        return response.json()
-
-    def embed(
-        self,
-        texts: list[str],
-    ) -> list[list[float]]:
-        """
-        Преобразует тексты в векторы.
-
-        Возвращает эмбеддинги в том же порядке,
-        в котором тексты были переданы.
-        """
-
-        if not texts:
-            return []
-
-        response = self._post(
-            endpoint="/embeddings",
-            payload={
-                "model": self.embedding_model,
-                "input": texts,
-                "encoding_format": "float",
-            },
-            api_key=self.embed_key,
-        )
-
-        items = response.get("data")
-
-        if not isinstance(items, list):
-            raise RuntimeError(
-                "Некорректный ответ API embeddings: "
-                "отсутствует список data."
-            )
-
-        if len(items) != len(texts):
-            raise RuntimeError(
-                "Количество полученных эмбеддингов "
-                "не совпадает с количеством текстов."
-            )
-
-        ordered_vectors = [None] * len(texts)
-
-        for item in items:
-            index = item.get("index")
-            vector = item.get("embedding")
-
-            if (
-                not isinstance(index, int)
-                or index < 0
-                or index >= len(texts)
-                or not isinstance(vector, list)
-            ):
-                raise RuntimeError(
-                    "Некорректный элемент ответа embeddings."
+    def _post(self, endpoint: str, payload: dict[str, Any], api_key: str, retries: int | None = None) -> dict[str, Any]:
+        if not self.base_url or not api_key:
+            raise RuntimeError(f"API не настроен для {endpoint}: нужны LLM_BASE_URL и ключ.")
+        attempts = (self.retries if retries is None else retries) + 1
+        last_error: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                response = self.http.post(
+                    self.base_url + endpoint, json=payload, headers={"Authorization": "Bearer " + api_key}
                 )
+                if response.status_code in (408, 409, 425, 429) or response.status_code >= 500:
+                    raise httpx.HTTPStatusError(f"HTTP {response.status_code}", request=response.request, response=response)
+                response.raise_for_status()
+                self.errors.pop(endpoint, None)
+                return response.json()
+            except (httpx.HTTPError, ValueError) as error:
+                last_error = error
+                status = getattr(getattr(error, "response", None), "status_code", None)
+                if status is not None and status < 500 and status not in (408, 409, 425, 429):
+                    break  # ошибка запроса — повтор не поможет
+                if attempt + 1 < attempts:
+                    time.sleep(1.5 * (attempt + 1))
+        self.errors[endpoint] = f"{type(last_error).__name__}: {last_error}"[:200]
+        raise RuntimeError(f"Запрос {endpoint} не выполнен: {self.errors[endpoint]}")
 
-            if ordered_vectors[index] is not None:
-                raise RuntimeError(
-                    f"Повторный индекс embedding: {index}."
-                )
+    def chat(self, messages: list[dict[str, str]], max_tokens: int | None = None) -> str:
+        data = self._post("/chat/completions", {
+            "model": self.llm_model,
+            "messages": messages,
+            "temperature": self.temperature,
+            "max_tokens": max_tokens or self.max_tokens,
+        }, self.llm_key)
+        try:
+            content = data["choices"][0]["message"].get("content") or ""
+        except (KeyError, IndexError, TypeError, AttributeError) as error:
+            raise RuntimeError("Некорректный ответ chat/completions.") from error
+        if not isinstance(content, str) or not content.strip():
+            raise RuntimeError("Модель вернула пустой ответ.")
+        return content.strip()
 
-            ordered_vectors[index] = vector
+    def embed(self, texts: list[str], batch_size: int = 32) -> list[list[float]]:
+        vectors: list[list[float]] = []
+        for start in range(0, len(texts), batch_size):
+            batch = texts[start:start + batch_size]
+            data = self._post("/embeddings", {"model": self.embedding_model, "input": batch, "encoding_format": "float"}, self.embed_key)
+            items = data.get("data")
+            if not isinstance(items, list) or len(items) != len(batch):
+                raise RuntimeError("Некорректный ответ embeddings.")
+            ordered: list[list[float] | None] = [None] * len(batch)
+            for position, item in enumerate(items):
+                index = int(item.get("index", position))
+                vector = [float(value) for value in item["embedding"]]
+                norm = math.sqrt(sum(value * value for value in vector)) or 1.0
+                if not 0 <= index < len(batch) or not math.isfinite(norm):
+                    raise RuntimeError("Некорректный элемент embeddings.")
+                ordered[index] = [value / norm for value in vector]
+            if any(vector is None for vector in ordered):
+                raise RuntimeError("Получены не все embeddings.")
+            vectors.extend(ordered)  # type: ignore[arg-type]
+        return vectors
 
-        if any(vector is None for vector in ordered_vectors):
-            raise RuntimeError(
-                "API не вернул эмбеддинги для всех текстов."
-            )
-
-        normalized_vectors = []
-
-        for vector in ordered_vectors:
-            norm = math.sqrt(
-                sum(float(value) ** 2 for value in vector)
-            )
-
-            if norm == 0:
-                normalized_vectors.append(
-                    [0.0] * len(vector)
-                )
-            else:
-                normalized_vectors.append(
-                    [float(value) / norm for value in vector]
-                )
-
-        return normalized_vectors
-
-    def rerank(
-        self,
-        query: str,
-        documents: list[str],
-        top_n: int = 2,
-    ) -> list[int]:
-        """
-        Переранжирует документы относительно вопроса.
-
-        Возвращает индексы документов в порядке релевантности.
-        """
+    def rerank(self, query: str, documents: list[str], top_n: int) -> list[tuple[int, float | None]]:
+        """Возвращает (индекс документа, оценка релевантности) по убыванию релевантности."""
 
         if not documents:
             return []
-
-        response = self._post(
-            endpoint="/rerank",
-            payload={
-                "model": self.reranker_model,
-                "query": query,
-                "documents": documents,
-                "top_n": min(top_n, len(documents)),
-            },
-            api_key=self.rerank_key,
-        )
-
-        results = response.get("results")
-
-        if results is None:
-            results = response.get("data")
-
-        if not isinstance(results, list):
-            raise RuntimeError(
-                "Некорректный ответ API reranker."
-            )
-
-        indices = []
-
-        for item in results:
-            index = item.get("index")
-
-            if (
-                not isinstance(index, int)
-                or index < 0
-                or index >= len(documents)
-            ):
-                raise RuntimeError(
-                    "Reranker вернул некорректный индекс."
-                )
-
-            indices.append(index)
-
-        return indices
-
-    def chat(
-        self,
-        messages: list[dict[str, str]],
-        max_tokens: int = 1024,
-        temperature: float = 0.0,
-    ) -> str:
-        """
-        Отправляет сообщения LLM и возвращает текст ответа.
-        """
-
-        response = self._post(
-            endpoint="/chat/completions",
-            payload={
-                "model": self.llm_model,
-                "messages": messages,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-            },
-            api_key=self.llm_key,
-        )
-
-        try:
-            content = response["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError):
-            raise RuntimeError(
-                "Некорректный ответ API chat/completions."
-            )
-
-        if not isinstance(content, str):
-            raise RuntimeError(
-                "LLM вернула ответ в неожиданном формате."
-            )
-
-        return content
+        data = self._post("/rerank", {
+            "model": self.reranker_model, "query": query, "documents": documents, "top_n": min(top_n, len(documents)),
+        }, self.rerank_key, retries=1)
+        items = data.get("results", data.get("data"))
+        if not isinstance(items, list):
+            raise RuntimeError("Некорректный ответ rerank.")
+        result: list[tuple[int, float | None]] = []
+        for item in items:
+            index = int(item["index"])
+            if not 0 <= index < len(documents) or any(index == seen for seen, _ in result):
+                continue
+            score = item.get("relevance_score", item.get("score"))
+            result.append((index, float(score) if isinstance(score, (int, float)) else None))
+        return result

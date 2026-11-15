@@ -1,7 +1,10 @@
 .env
-venv/
 .venv/
+venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.qdrant/
+dist/
+submission.csv
+reports/submission_*.csv
+.claude/
