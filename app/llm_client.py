@@ -51,6 +51,8 @@ class AIClient:
         self.retries = env_int("LLM_RETRIES", 2, 0, 5)
         self.http = httpx.Client(timeout=httpx.Timeout(env_int("LLM_TIMEOUT", 90, 5, 600), connect=15.0), transport=transport)
         self.errors: dict[str, str] = {}
+        self.failures: dict[str, int] = {}
+        self.disabled: set[str] = set()   # эндпоинты, которых нет у провайдера
 
     @property
     def has_llm(self) -> bool:
@@ -58,11 +60,11 @@ class AIClient:
 
     @property
     def has_embeddings(self) -> bool:
-        return bool(self.base_url and self.embed_key) and env("DISABLE_EMBEDDINGS") != "1"
+        return bool(self.base_url and self.embed_key) and env("DISABLE_EMBEDDINGS") != "1" and "/embeddings" not in self.disabled
 
     @property
     def has_reranker(self) -> bool:
-        return bool(self.base_url and self.rerank_key) and env("DISABLE_RERANKER") != "1"
+        return bool(self.base_url and self.rerank_key) and env("DISABLE_RERANKER") != "1" and "/rerank" not in self.disabled
 
     def close(self) -> None:
         self.http.close()
@@ -81,6 +83,7 @@ class AIClient:
                     raise httpx.HTTPStatusError(f"HTTP {response.status_code}", request=response.request, response=response)
                 response.raise_for_status()
                 self.errors.pop(endpoint, None)
+                self.failures.pop(endpoint, None)
                 return response.json()
             except (httpx.HTTPError, ValueError) as error:
                 last_error = error
@@ -90,6 +93,13 @@ class AIClient:
                 if attempt + 1 < attempts:
                     time.sleep(1.5 * (attempt + 1))
         self.errors[endpoint] = f"{type(last_error).__name__}: {last_error}"[:200]
+        # Вспомогательный эндпоинт, который не отвечает (нет у провайдера, неверная модель),
+        # отключается до перезапуска, чтобы не тратить время на каждый вопрос.
+        self.failures[endpoint] = self.failures.get(endpoint, 0) + 1
+        status = getattr(getattr(last_error, "response", None), "status_code", None)
+        if endpoint != "/chat/completions" and (self.failures[endpoint] >= 2 or (status and 400 <= status < 500 and status != 429)):
+            self.disabled.add(endpoint)
+            logger.warning("Эндпоинт %s отключён: %s", endpoint, self.errors[endpoint])
         raise RuntimeError(f"Запрос {endpoint} не выполнен: {self.errors[endpoint]}")
 
     def chat(self, messages: list[dict[str, str]], max_tokens: int | None = None) -> str:

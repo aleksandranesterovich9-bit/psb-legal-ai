@@ -276,7 +276,7 @@ class KnowledgeBase:
         lexical = self.bm25.scores(weights)
         rankings = [sorted((i for i, s in enumerate(lexical) if s > 0), key=lambda i: -lexical[i])[:200]]
 
-        if self.vectors is not None:
+        if self.vectors is not None and self.ai.has_embeddings:
             try:
                 text = query.question if not query.context else f"{query.context[-500:]}\n{query.question}"
                 vector = self.ai.embed([text])[0]
