@@ -120,3 +120,20 @@ def test_submission_csv_contract(tmp_path, monkeypatch):
     assert list(csv.DictReader(path.open(encoding="utf-8")))[0] == {"id": "1", "answer": 'Ответ с "кавычками", запятой'}
     questions = solution.load_questions(solution.ROOT / "data" / "demo_questions.csv")
     assert len(questions) == 18 and questions[5][1].startswith("Пользователь:")
+
+
+def test_misattributed_clause_is_caught(make_assistant):
+    assistant = make_assistant([])
+    question = "Почему по договору с ООО «Северный Склад» арендная плата 500 000 рублей в месяц?"
+    query = assistant.kb.analyze(question)
+    sources = [(f"S{i}", c) for i, c in enumerate(assistant.kb.select_evidence(query, assistant.kb.search(query)), 1)]
+    wrong = "Арендодатель вправе не чаще одного раза в год увеличить размер арендной платы не более чем на 7%, письменно уведомив Арендатора (п. 3.3)."
+    right = wrong.replace("п. 3.3", "п. 3.4")
+    assert any("3.3" in item for item, _ in assistant._misattributed(wrong, sources))
+    assert not assistant._misattributed(right, sources)
+
+
+def test_short_general_rule_reaches_model(kb):
+    query = kb.analyze("Какая ставка НДС по общему правилу?")
+    evidence = kb.select_evidence(query, kb.search(query))
+    assert any("22 процента" in c.text and c.number == "3" for c in evidence)

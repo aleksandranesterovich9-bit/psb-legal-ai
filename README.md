@@ -45,7 +45,7 @@ python scripts/build_submission.py   # -> dist/submission.zip
 | `LLM_MODEL` (`GEN_MODEL`, `OPENAI_MODEL`) | генеративная модель | `deepseek/deepseek-v4.1-flash` |
 | `EMB_MODEL` | модель эмбеддингов | `baai/bge-m3` |
 | `RERANKER_MODEL` | реранкер (Qwen3 Reranker 8B) | `qwen/qwen3-reranker-8b` |
-| `TEMPERATURE`, `MAX_TOKENS` | параметры генерации | `0`, `1500` |
+| `TEMPERATURE`, `MAX_TOKENS` | параметры генерации | `0`, `6000` |
 | `MAX_WORKERS` | число параллельных вопросов в `solution.py` | `2` |
 | `LLM_TIMEOUT`, `LLM_RETRIES` | таймаут (с) и число повторов запроса | `90`, `2` |
 | `DISABLE_EMBEDDINGS`, `DISABLE_RERANKER` | `1` — отключить компонент | — |

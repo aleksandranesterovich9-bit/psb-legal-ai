@@ -370,6 +370,16 @@ class KnowledgeBase:
                         selected.add(chunk.index)
                         break
 
+        # Большой закон: к найденным фрагментам добавляются короткие самостоятельные пункты
+        # («3. … по налоговой ставке 22 процента в случаях, не указанных в пунктах 1, 2 и 4»),
+        # которые по словам вопроса ранжируются низко, но часто содержат общее правило.
+        for doc_id, selected in law_selected.items():
+            chunks = self.doc_chunks[doc_id]
+            if len(selected) == len(chunks):
+                continue
+            shorts = [c for c in chunks if c.lead is None and c.kind == "part" and 60 <= len(c.text) <= 900 and c.index not in selected]
+            selected.update(c.index for c in shorts[:10])
+
         evidence: list[Chunk] = []
         total = 0
         doc_order = sorted(set(chosen) | set(law_selected), key=lambda d: (d not in query.targets, -doc_scores.get(d, 0.0)))

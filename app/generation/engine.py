@@ -38,8 +38,8 @@ SYSTEM_PROMPT = """Ты — юридический ИИ-ассистент ба�
 ПРАВИЛА РАБОТЫ С ИСТОЧНИКАМИ
 1. Единственный источник юридических фактов — блок <источники>. Запрещено использовать память, общие знания и внешние источники для норм, сроков, сумм, ставок, номеров статей и пунктов.
 2. Каждый значимый вывод подтверждай положением из источников и называй его в тексте: вид и номер документа, контрагента, пункт или статью (например: «по договору аренды № А-08/2024 с ООО «Северный Склад» … (п. 3.1)», «ТК РФ, ст. 70»).
-3. Если ответа в источниках нет — прямо скажи об этом, укажи, каких сведений или документов не хватает, и сообщи то, что в базе всё же есть по теме. Не домысливай.
-4. Не отказывайся, если ответ есть в источниках, даже когда вопрос сформулирован разговорно или иными словами, чем документ. Ответ можно собирать из нескольких пунктов и документов.
+3. Если ответа в источниках нет — прямо скажи об этом, укажи, каких сведений или документов не хватает (можно назвать лишь род документа, не называя из памяти конкретные законы, статьи и суммы), и сообщи то, что в базе всё же есть по теме. Не домысливай и не выводи правовых последствий, которых нет в тексте источника.
+4. Отвечай на заданный вопрос: сначала прямой вывод. Дополнительные положения добавляй только если они меняют вывод или это существенное условие, исключение, срок или изменение по доп. соглашению, относящееся к вопросу; не пересказывай соседние пункты. Не отказывайся, если ответ есть в источниках, даже когда вопрос сформулирован разговорно или иными словами, чем документ. Ответ можно собирать из нескольких пунктов и документов.
 5. Если вопрос содержит неверную предпосылку (другая сумма, срок, сторона, пункт) — поправь её по документу, не подстраивайся под пользователя.
 6. Даты и редакции. Для внутренних документов применяй редакцию, действовавшую на дату события; учитывай дополнительные соглашения и дату, с которой они применяются. Утратившую силу редакцию не выдавай за действующую. Законы даны только в действующей редакции: если событие произошло раньше даты изменения нормы (см. отметки «ред. с …»), сообщи, что прежней редакции в базе нет, и не делай вывода о том, что действовало тогда.
 7. Если непонятно, о каком договоре, контрагенте или периоде речь, и от этого зависит ответ — задай уточняющий вопрос и кратко покажи, что сказано в каждом подходящем документе.
@@ -197,6 +197,7 @@ class LegalAssistant:
         for match in re.finditer(r"\bп(?:ункт\w*|п)?\.?\s*(\d+(?:\.\d+)+)", answer):
             if match.group(1) not in clauses and match.group(1) not in allowed_text:
                 issues.append((match.group(0), f"пункта {match.group(1)} нет в источниках"))
+        issues.extend(self._misattributed(answer, sources))
         # Статьи законов.
         articles = {d.law_article for d in kb.documents if d.law_article}
         for match in re.finditer(r"\bст(?:ать[яиеюй]|атей|атьями|атьях|\.)\s*(\d+(?:\.\d+)*)", answer):
@@ -237,6 +238,41 @@ class LegalAssistant:
             if round(value, 4) not in allowed:
                 shown = int(value) if value == int(value) else value
                 issues.append((str(shown), f"числа {shown} нет в источниках"))
+        return issues
+
+    def _misattributed(self, answer: str, sources: list[tuple[str, Chunk]]) -> list[tuple[str, str]]:
+        """Ссылка «(п. X)» должна указывать на пункт, который действительно содержит утверждение.
+
+        Для предложения с отсылкой к пунктам договора сравнивается лексическое покрытие
+        цитируемого пункта и лучшего из остальных пунктов того же набора источников."""
+
+        issues: list[tuple[str, str]] = []
+        by_number: dict[str, list[Chunk]] = {}
+        for _, chunk in sources:
+            if chunk.number and not self.kb.docs[chunk.doc_id].is_law:
+                by_number.setdefault(chunk.number, []).append(chunk)
+        ref = re.compile(r"\bп(?:ункт\w*|п)?\.?\s*(\d+(?:\.\d+)+(?:\s*(?:,|и|–|-)\s*\d+(?:\.\d+)+)*)")
+        sentences = re.split(r"(?<![\s(]п\.)(?<![\s(]ст\.)(?<=[.!?])\s+(?=[А-ЯЁA-Z«\d])", answer)
+        for sentence in sentences:
+            cited = {n for match in ref.finditer(sentence) for n in re.findall(r"\d+(?:\.\d+)+", match.group(1))}
+            cited = {n for n in cited if n in by_number}
+            if not cited:
+                continue
+            titles = set()
+            for chunks in by_number.values():
+                for chunk in chunks:
+                    titles.update(tx.tokens(self._document_header(chunk.doc_id, Query(raw="", turns=[], question=""))))
+            words = {t for t in tx.content_tokens(ref.sub(" ", sentence)) if len(t) > 3 and t not in titles}
+            if len(words) < 4:
+                continue
+
+            def cover(chunk: Chunk) -> float:
+                return len(words & set(tx.tokens(chunk.text))) / len(words)
+
+            best_cited = max(cover(chunk) for n in cited for chunk in by_number[n])
+            best_other = max((cover(chunk) for n, chunks in by_number.items() if n not in cited for chunk in chunks), default=0.0)
+            if best_cited < 0.45 and best_other - best_cited >= 0.2:
+                issues.append((f"п. {', '.join(sorted(cited))}", "указанный пункт не содержит это утверждение; в источниках есть пункт, который его содержит"))
         return issues
 
     def _citations(self, data: dict, sources: list[tuple[str, Chunk]]) -> list[Citation]:

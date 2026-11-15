@@ -47,7 +47,7 @@ class AIClient:
         self.embedding_model = env("EMB_MODEL", "baai/bge-m3")
         self.reranker_model = env("RERANKER_MODEL", "qwen/qwen3-reranker-8b")
         self.temperature = env_float("TEMPERATURE", 0.0)
-        self.max_tokens = env_int("MAX_TOKENS", 1500, 256, 8192)
+        self.max_tokens = env_int("MAX_TOKENS", 6000, 256, 16000)
         self.retries = env_int("LLM_RETRIES", 2, 0, 5)
         self.http = httpx.Client(timeout=httpx.Timeout(env_int("LLM_TIMEOUT", 90, 5, 600), connect=15.0), transport=transport)
         self.errors: dict[str, str] = {}
@@ -103,19 +103,33 @@ class AIClient:
         raise RuntimeError(f"Запрос {endpoint} не выполнен: {self.errors[endpoint]}")
 
     def chat(self, messages: list[dict[str, str]], max_tokens: int | None = None) -> str:
-        data = self._post("/chat/completions", {
-            "model": self.llm_model,
-            "messages": messages,
-            "temperature": self.temperature,
-            "max_tokens": max_tokens or self.max_tokens,
-        }, self.llm_key)
-        try:
-            content = data["choices"][0]["message"].get("content") or ""
-        except (KeyError, IndexError, TypeError, AttributeError) as error:
-            raise RuntimeError("Некорректный ответ chat/completions.") from error
-        if not isinstance(content, str) or not content.strip():
-            raise RuntimeError("Модель вернула пустой ответ.")
-        return content.strip()
+        """Ответ модели. DeepSeek V4.1 «думает» перед ответом: рассуждения расходуют
+        max_tokens, и при нехватке бюджета content приходит пустым (finish_reason=length).
+        Тогда запрос повторяется с удвоенным бюджетом и пониженным усилием рассуждения."""
+
+        budget = max_tokens or self.max_tokens
+        extra: dict[str, Any] = {}
+        effort = env("LLM_REASONING_EFFORT")
+        if effort:
+            extra["reasoning"] = {"effort": effort}
+        for attempt in range(2):
+            data = self._post("/chat/completions", {
+                "model": self.llm_model, "messages": messages, "temperature": self.temperature,
+                "max_tokens": budget, **extra,
+            }, self.llm_key)
+            try:
+                choice = data["choices"][0]
+                content = choice["message"].get("content") or ""
+            except (KeyError, IndexError, TypeError, AttributeError) as error:
+                raise RuntimeError("Некорректный ответ chat/completions.") from error
+            if isinstance(content, str) and content.strip():
+                return content.strip()
+            if attempt == 0 and choice.get("finish_reason") == "length":
+                budget = min(budget * 2, 16000)
+                extra = {"reasoning": {"effort": "low"}}
+                continue
+            break
+        raise RuntimeError("Модель вернула пустой ответ.")
 
     def embed(self, texts: list[str], batch_size: int = 32) -> list[list[float]]:
         vectors: list[list[float]] = []
