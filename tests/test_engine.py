@@ -187,3 +187,22 @@ def test_parallel_answers_are_consistent(make_assistant):
     with ThreadPoolExecutor(max_workers=4) as pool:
         targets = list(pool.map(lambda q: tuple(assistant.kb.docs[d].number for d in assistant.kb.analyze(q).targets), questions))
     assert targets[0::2] == [("А-08/2024",)] * 4 and targets[1::2] == [("ПТ-05/2023",)] * 4
+
+
+def test_expired_time_budget_stops_api_calls(make_assistant):
+    assistant = make_assistant([GOOD])
+    assistant.ai.deadline = 0.0  # бюджет времени исчерпан
+    result = assistant.answer(RENT_Q)
+    assert result.mode == "extractive" and "450 000" in result.answer and not assistant.calls
+
+
+def test_submission_zip_is_flat(tmp_path):
+    import subprocess
+    import sys
+    import zipfile
+
+    root = __import__("pathlib").Path(__file__).resolve().parents[1]
+    subprocess.run([sys.executable, str(root / "scripts" / "build_submission.py")], check=True, capture_output=True)
+    names = zipfile.ZipFile(root / "dist" / "submission.zip").namelist()
+    assert "solution.py" in names and "requirements.txt" in names
+    assert not any("/" in name for name in names) and not any(name.endswith((".csv", ".zip")) for name in names)

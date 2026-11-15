@@ -53,23 +53,32 @@ class AIClient:
         self.errors: dict[str, str] = {}
         self.failures: dict[str, int] = {}
         self.disabled: set[str] = set()   # эндпоинты, которых нет у провайдера
+        # Общий бюджет времени (лимит платформы — 20 минут): после дедлайна вызовы API не делаются,
+        # остальные ответы собираются без LLM, чтобы submission.csv был записан полностью.
+        self.deadline: float | None = None
+
+    @property
+    def expired(self) -> bool:
+        return self.deadline is not None and time.monotonic() > self.deadline
 
     @property
     def has_llm(self) -> bool:
-        return bool(self.base_url and self.llm_key)
+        return bool(self.base_url and self.llm_key) and not self.expired
 
     @property
     def has_embeddings(self) -> bool:
-        return bool(self.base_url and self.embed_key) and env("DISABLE_EMBEDDINGS") != "1" and "/embeddings" not in self.disabled
+        return bool(self.base_url and self.embed_key) and not self.expired and env("DISABLE_EMBEDDINGS") != "1" and "/embeddings" not in self.disabled
 
     @property
     def has_reranker(self) -> bool:
-        return bool(self.base_url and self.rerank_key) and env("DISABLE_RERANKER") != "1" and "/rerank" not in self.disabled
+        return bool(self.base_url and self.rerank_key) and not self.expired and env("DISABLE_RERANKER") != "1" and "/rerank" not in self.disabled
 
     def close(self) -> None:
         self.http.close()
 
     def _post(self, endpoint: str, payload: dict[str, Any], api_key: str, retries: int | None = None) -> dict[str, Any]:
+        if self.expired:
+            raise RuntimeError("Исчерпан бюджет времени запуска.")
         if not self.base_url or not api_key:
             raise RuntimeError(f"API не настроен для {endpoint}: нужны LLM_BASE_URL и ключ.")
         attempts = (self.retries if retries is None else retries) + 1
