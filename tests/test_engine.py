@@ -137,3 +137,53 @@ def test_short_general_rule_reaches_model(kb):
     query = kb.analyze("Какая ставка НДС по общему правилу?")
     evidence = kb.select_evidence(query, kb.search(query))
     assert any("22 процента" in c.text and c.number == "3" for c in evidence)
+
+
+def test_llm_returns_garbage_falls_back_without_invention(make_assistant):
+    assistant = make_assistant(["это вообще не JSON и без ссылок", "снова не JSON"])
+    result = assistant.answer("Какой срок оплаты по договору ПТ-05/2023?")
+    assert result.status in {"partial", "answer"} and "45" in result.answer or result.mode == "extractive"
+
+
+def test_empty_and_length_truncated_llm_reply_is_retried(kb, monkeypatch):
+    import json
+
+    import httpx
+
+    from app.generation.engine import LegalAssistant
+    from app.llm_client import AIClient
+
+    monkeypatch.setenv("LLM_BASE_URL", "http://llm.test")
+    monkeypatch.setenv("LLM_API_KEY", "x")
+    monkeypatch.setenv("DISABLE_EMBEDDINGS", "1")
+    monkeypatch.setenv("DISABLE_RERANKER", "1")
+    seen = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        seen.append(body)
+        if len(seen) == 1:  # рассуждения «съели» бюджет: content пуст
+            return httpx.Response(200, json={"choices": [{"finish_reason": "length", "message": {"content": None, "reasoning": "..."}}]})
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": '{"status":"answer","answer":"Срок оплаты — 45 (сорок пять) календарных дней с даты поставки (п. 4.1).","citations":[]}'}}]})
+
+    ai = AIClient(transport=httpx.MockTransport(handler))
+    result = LegalAssistant(kb, ai).answer("Какой срок оплаты по договору ПТ-05/2023?")
+    assert len(seen) == 2 and seen[1]["max_tokens"] == 2 * seen[0]["max_tokens"] and seen[1]["reasoning"] == {"effort": "low"}
+    assert "45" in result.answer and result.mode == "llm"
+
+
+def test_independent_questions_share_no_state(make_assistant):
+    assistant = make_assistant([])
+    first = assistant.kb.analyze("Какая арендная плата по договору А-08/2024?")
+    second = assistant.kb.analyze("Какой срок оплаты?")
+    assert first.targets and not second.targets  # контекст не «протекает» между вопросами
+
+
+def test_parallel_answers_are_consistent(make_assistant):
+    from concurrent.futures import ThreadPoolExecutor
+
+    assistant = make_assistant([])
+    questions = ["Какая арендная плата по договору А-08/2024?", "Какой срок оплаты по договору ПТ-05/2023?"] * 4
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        targets = list(pool.map(lambda q: tuple(assistant.kb.docs[d].number for d in assistant.kb.analyze(q).targets), questions))
+    assert targets[0::2] == [("А-08/2024",)] * 4 and targets[1::2] == [("ПТ-05/2023",)] * 4

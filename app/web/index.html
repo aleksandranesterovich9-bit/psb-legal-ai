@@ -3,271 +3,372 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PSB Legal AI — юридическая справочная</title>
+<title>PSB Legal AI — юридический ассистент</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --paper:#efe9dc;--sheet:#fbf8f1;--rail:#e6dfcf;--ink:#1b2130;--soft:#5d594f;--faint:#8c8576;--rule:#cfc5b0;--rule2:#e2dacb;
-  --orange:#e2511b;--blue:#243f8f;--green:#2c6a3e;--amber:#9c5f06;--red:#9e2a20;--grey:#5f6570;--mark:#ffe58a;
-  --serif:"PT Serif",Georgia,Cambria,"Times New Roman",serif;
-  --sans:"Segoe UI","Helvetica Neue",Arial,sans-serif;
-  --mono:Consolas,"JetBrains Mono",Menlo,"DejaVu Sans Mono",monospace;
+  --lime:#D9FF63;--lime-d:#c4ec45;--graphite:#24252B;--g2:#31323a;--g3:#43444d;--milk:#F5F4EF;--white:#fff;--lav:#A99BFF;--lav-bg:#eeebff;
+  --ink:#1d1e23;--soft:#5b5d68;--faint:#8b8d98;--line:#e3e1d8;--line2:#eeece4;
+  --ok:#1f7a4d;--ok-bg:#e3f3ea;--warn:#9a6a00;--warn-bg:#fdf0cc;--bad:#b3261e;--bad-bg:#fbe6e3;--info:#2f5fb3;--info-bg:#e5edfb;--mute:#5f6270;--mute-bg:#ebebee;
+  --sans:Manrope,"Segoe UI",system-ui,-apple-system,Arial,sans-serif;--mono:"JetBrains Mono",Consolas,Menlo,monospace;--r:10px;
 }
 *{box-sizing:border-box}html,body{height:100%}
-body{margin:0;font:14.5px/1.5 var(--sans);color:var(--ink);background:var(--paper)}
+body{margin:0;font:15px/1.55 var(--sans);color:var(--ink);background:var(--milk);-webkit-font-smoothing:antialiased}
 button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}button:disabled{cursor:not-allowed;opacity:.5}
-.caps{font:600 10.5px/1.2 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
-.app{display:grid;grid-template-columns:250px minmax(0,1fr) 390px;height:100vh}
+button:focus-visible,textarea:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--graphite);outline-offset:2px}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:.01em}
+.cap{font:500 11px/1.2 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--faint)}
+svg{width:1em;height:1em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.app{display:grid;grid-template-columns:288px minmax(0,1fr) 410px;height:100vh;height:100dvh}
 
-/* ── реестр обращений ── */
-.rail{background:var(--rail);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0}
-.mast{padding:20px 18px 16px;border-bottom:3px double var(--ink)}
-.mast .caps{color:var(--soft)}
-.mast b{display:block;font:700 27px/1 var(--serif);letter-spacing:-.01em;margin-top:6px}
-.mast b i{font-style:normal;color:var(--orange)}
-.new{margin:14px 18px 6px;padding:9px 12px;border:1px solid var(--ink);text-align:left;font-weight:600;display:flex;justify-content:space-between}
-.new:hover{background:var(--ink);color:var(--sheet)}
-.rail h4{margin:14px 18px 6px}
-.reg{flex:1;overflow:auto;min-height:0}
-.row{display:grid;grid-template-columns:30px 1fr 16px;gap:6px;align-items:baseline;padding:8px 18px;border-top:1px solid var(--rule);cursor:pointer}
-.row:last-child{border-bottom:1px solid var(--rule)}
-.row:hover{background:#ddd5c2}.row.on{background:var(--sheet);box-shadow:inset 3px 0 0 var(--orange)}
-.row .n{font:12px var(--mono);color:var(--faint)}
-.row .t{font:14px/1.3 var(--serif);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.row .t small{display:block;font:11px var(--sans);color:var(--faint);margin-top:2px}
-.row button{color:var(--faint);visibility:hidden}.row:hover button{visibility:visible}.row button:hover{color:var(--red)}
-.none{padding:8px 18px;color:var(--faint);font:italic 13.5px var(--serif)}
-.kb{margin:10px 18px;padding:8px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);text-align:left;display:flex;justify-content:space-between;font-size:13.5px}
-.kb:hover{color:var(--orange)}
-.state{padding:12px 18px 16px;font-size:12px;color:var(--soft);line-height:1.55}
-.state b{display:flex;align-items:center;gap:7px;font:600 12.5px var(--sans);color:var(--ink)}
-.sq{width:9px;height:9px;background:var(--faint);flex:none}.sq.ok{background:var(--green)}.sq.warn{background:#d39a1c}.sq.bad{background:var(--red)}
+/* ── боковая панель ── */
+.side{background:var(--graphite);color:#e9e9ec;display:flex;flex-direction:column;min-height:0;padding:20px 16px 16px}
+.brand{display:flex;align-items:center;gap:11px;padding:0 4px 18px}
+.mark{width:36px;height:36px;border-radius:9px;background:var(--lime);color:var(--graphite);display:grid;place-items:center;font:800 15px var(--sans);letter-spacing:-.03em}
+.brand b{display:block;font-weight:800;font-size:16.5px;letter-spacing:-.01em;line-height:1.15;color:#fff}
+.brand small{font:400 11px var(--mono);color:#9fa0ab}
+.new{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--lime);color:var(--graphite);font-weight:700;border-radius:var(--r);padding:11px 14px;transition:background .15s}
+.new:hover{background:var(--lime-d)}
+.nav{display:flex;flex-direction:column;gap:2px;margin:16px 0 10px}
+.nav button{display:flex;align-items:center;gap:10px;text-align:left;padding:9px 10px;border-radius:8px;color:#c9cad2;font-weight:600;font-size:14px}
+.nav button:hover{background:var(--g2);color:#fff}.nav button.on{background:var(--g2);color:#fff;box-shadow:inset 3px 0 0 var(--lime)}
+.nav .count{margin-left:auto;font:500 11px var(--mono);color:#9fa0ab}
+.side h4{margin:8px 10px 6px}.side .cap{color:#7f808c}
+.hist{flex:1;overflow:auto;min-height:0;display:flex;flex-direction:column;gap:2px;margin:0 -4px;padding:0 4px}
+.h{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;color:#c9cad2;font-size:13.5px}
+.h:hover{background:var(--g2);color:#fff}.h.on{background:var(--g2);color:#fff}
+.h .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h .d{font:400 10.5px var(--mono);color:#7f808c}
+.h .x{visibility:hidden;color:#8b8c97;font-size:16px;line-height:1;padding:0 2px}.h:hover .x{visibility:visible}.h .x:hover{color:var(--lime)}
+.none{padding:8px 10px;color:#7f808c;font-size:13px}
+.svc{border-top:1px solid var(--g3);margin-top:10px;padding:12px 4px 0;font-size:12px;line-height:1.6;color:#a2a3ae}
+.svc b{display:flex;align-items:center;gap:8px;color:#fff;font-weight:700;font-size:12.5px}
+.led{width:8px;height:8px;border-radius:50%;background:#7f808c;flex:none}.led.ok{background:#5fd68a}.led.warn{background:#f1b93c}.led.bad{background:#ff7566}
 
-/* ── лист обращения ── */
-.desk{display:flex;flex-direction:column;min-width:0;min-height:0}
-.bar{display:flex;align-items:center;gap:12px;padding:10px 26px;border-bottom:1px solid var(--rule);font-size:12.5px;color:var(--soft)}
-.bar .sp{flex:1}.bar span b{color:var(--ink);font-weight:600}
-.tog{display:none;border:1px solid var(--ink);padding:3px 9px;font-size:12.5px;color:var(--ink)}
-.warnline{display:none;padding:7px 26px;background:#f6e3b4;border-bottom:1px solid #d9bf7a;font-size:12.5px;color:#5c4300}
-.scroll{flex:1;overflow:auto;min-height:0;padding:26px}
-.col{max-width:760px;margin:0 auto}
-.intro h2{font:700 30px/1.15 var(--serif);margin:6px 0 10px;letter-spacing:-.01em}
-.intro p{font:16px/1.6 var(--serif);color:var(--soft);margin:0 0 22px;max-width:620px}
-.ask{display:grid;grid-template-columns:34px 1fr 18px;gap:8px;align-items:baseline;width:100%;text-align:left;padding:11px 4px;border-top:1px solid var(--rule)}
-.ask:last-child{border-bottom:1px solid var(--rule)}
-.ask .n{font:12px var(--mono);color:var(--faint)}.ask .q{font:15.5px/1.4 var(--serif)}.ask .a{color:var(--faint)}
-.ask:hover{background:var(--sheet)}.ask:hover .a{color:var(--orange)}
-.entry{margin-bottom:30px}
-.q-head,.a-head{display:flex;align-items:center;gap:10px;margin-bottom:7px}
-.q-text{font:italic 17px/1.5 var(--serif);border-left:3px solid var(--orange);padding:2px 0 2px 14px;white-space:pre-wrap;overflow-wrap:anywhere}
-.sheet{background:var(--sheet);border:1px solid var(--rule);box-shadow:0 1px 0 #fff inset,3px 3px 0 var(--rule2);padding:18px 22px 14px;margin-top:14px;position:relative}
-.stamp{font:700 10.5px/1 var(--sans);letter-spacing:.13em;text-transform:uppercase;border:1.5px solid currentColor;padding:5px 8px 4px;transform:rotate(-1.6deg);color:var(--grey)}
-.st-answer{color:var(--green)}.st-partial,.st-extractive,.st-false_premise{color:var(--amber)}.st-clarify{color:var(--blue)}
-.st-conflict,.st-refusal,.st-error{color:var(--red)}
-.body{font:16.5px/1.65 var(--serif);white-space:pre-wrap;overflow-wrap:anywhere}
-.ref{font:13.5px var(--mono);color:var(--blue);border-bottom:1px dotted var(--blue);padding:0 1px}
-.ref:hover{background:var(--mark);border-bottom-style:solid}
-.margin{margin-top:10px;padding:7px 10px;border-left:2px solid var(--amber);font-size:12.5px;color:#5c4300;background:#f8edd0}
-.foot{margin-top:14px;border-top:1px solid var(--rule);padding-top:9px}
-.fn{display:grid;grid-template-columns:24px 1fr;gap:4px;width:100%;text-align:left;padding:3px 0;font-size:13.5px;line-height:1.4}
-.fn sup{font:11.5px var(--mono);color:var(--orange);vertical-align:baseline}
-.fn:hover span{text-decoration:underline}
-.fn em{font-style:normal;font-family:var(--mono);font-size:12.5px;color:var(--blue)}
-.acts{display:flex;gap:16px;align-items:center;margin-top:10px;font-size:12.5px;color:var(--faint)}
-.acts button{color:var(--soft);border-bottom:1px solid var(--rule)}.acts button:hover{color:var(--orange);border-color:var(--orange)}
-.wait{font:italic 15.5px var(--serif);color:var(--soft)}
-.wait::after{content:"";display:block;height:2px;margin-top:12px;background:linear-gradient(90deg,var(--orange) 0 30%,transparent 30%) 0 0/200% 100%;animation:run 1.3s linear infinite}
-@keyframes run{from{background-position:130% 0}to{background-position:-70% 0}}
-.compose{border-top:3px double var(--ink);padding:14px 26px 12px;background:var(--paper)}
-.compose form{max-width:760px;margin:0 auto;display:flex;gap:12px;align-items:flex-end}
-textarea{flex:1;resize:none;border:0;border-bottom:1.5px solid var(--ink);background:transparent;padding:9px 2px;font:16px/1.45 var(--serif);color:var(--ink);max-height:150px;min-height:42px;outline:none}
-textarea::placeholder{color:var(--faint);font-style:italic}textarea:focus{border-bottom-color:var(--orange)}
-.go{background:var(--orange);color:#fff;height:42px;padding:0 18px;font-weight:600;letter-spacing:.02em}
-.go:hover:not(:disabled){background:var(--ink)}
-.tip{max-width:760px;margin:7px auto 0;font-size:11.5px;color:var(--faint)}
-
-/* ── основания ── */
-.proof{background:var(--sheet);border-left:1px solid var(--rule);display:flex;flex-direction:column;min-height:0}
-.proof header{padding:20px 20px 12px;border-bottom:3px double var(--ink);display:flex;align-items:flex-end;gap:8px}
-.proof header div{flex:1}.proof h3{font:700 21px/1.1 var(--serif);margin:5px 0 0}
-.x{font-size:22px;line-height:1;color:var(--faint);display:none}.x:hover{color:var(--red)}
-.plist{flex:1;overflow:auto;padding:4px 20px 20px}
-.hintp{font:italic 14.5px/1.5 var(--serif);color:var(--faint);padding:16px 0}
-.src{border-bottom:1px solid var(--rule);padding:14px 0}
-.src summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:26px 1fr;gap:4px}
+/* ── рабочая область ── */
+.main{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--milk)}
+.top{display:flex;align-items:center;gap:12px;padding:12px 28px;border-bottom:1px solid var(--line)}
+.top h1{margin:0;font-size:15px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .hint{font-size:12.5px;color:var(--soft)}
+.tbtn{display:none;align-items:center;gap:6px;border:1px solid var(--line);background:var(--white);border-radius:8px;padding:6px 10px;font-weight:600;font-size:13px}
+.banner{display:none;align-items:center;gap:10px;padding:9px 28px;font-size:13px;border-bottom:1px solid var(--line)}
+.banner.show{display:flex}.banner.warn{background:var(--warn-bg);color:#5d4100}.banner.bad{background:var(--bad-bg);color:#7e1a14}.banner.info{background:var(--info-bg);color:#1f4380}
+.scroll{flex:1;overflow:auto;min-height:0;padding:28px}
+.col{max-width:780px;margin:0 auto}
+/* старт */
+.hero{background:var(--graphite);color:#fff;border-radius:16px;padding:30px 32px;position:relative;overflow:hidden}
+.hero .tag{display:inline-block;background:var(--lime);color:var(--graphite);font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.08em;border-radius:6px;padding:4px 8px;margin-bottom:14px}
+.hero h2{margin:0 0 10px;font-size:28px;line-height:1.18;font-weight:800;letter-spacing:-.02em;max-width:560px}
+.hero p{margin:0;color:#b8b9c3;max-width:560px;font-size:15px}
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0 22px}
+.feat{background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px}
+.feat .ic{width:30px;height:30px;border-radius:8px;background:var(--lime);display:grid;place-items:center;margin-bottom:9px;font-size:16px;color:var(--graphite)}
+.feat:nth-child(3) .ic{background:var(--lav)}
+.feat b{display:block;font-size:14px;margin-bottom:3px}.feat span{font-size:13px;color:var(--soft);line-height:1.45;display:block}
+.ex{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:var(--white);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-top:8px;transition:border-color .15s,transform .15s}
+.ex:hover{border-color:var(--graphite)}.ex .n{font:500 12px var(--mono);color:var(--faint);padding-top:2px}.ex .q{flex:1;font-size:14.5px;line-height:1.45}.ex .go{color:var(--faint);padding-top:3px}.ex:hover .go{color:var(--graphite)}
+/* реплики */
+.turn{margin-bottom:26px}
+.me{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px}
+.av{width:28px;height:28px;border-radius:50%;background:var(--graphite);color:var(--lime);display:grid;place-items:center;font:700 11px var(--mono);flex:none}
+.me .q{background:var(--white);border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:10px 14px;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:500}
+.ans{background:var(--white);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-left:38px}
+.ans>.bar{height:4px;background:var(--mute)}
+.st-answer>.bar{background:var(--ok)}.st-partial>.bar,.st-false_premise>.bar,.st-extractive>.bar{background:#e0a21b}.st-clarify>.bar{background:var(--info)}
+.st-conflict>.bar,.st-refusal>.bar,.st-error>.bar{background:var(--bad)}.st-insufficient>.bar,.st-out_of_scope>.bar{background:var(--mute)}
+.ans .in{padding:16px 20px 14px}
+.hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:12.5px;border-radius:20px;padding:4px 11px 4px 9px;background:var(--mute-bg);color:var(--mute)}
+.st-answer .badge{background:var(--ok-bg);color:var(--ok)}.st-partial .badge,.st-false_premise .badge,.st-extractive .badge{background:var(--warn-bg);color:var(--warn)}
+.st-clarify .badge{background:var(--info-bg);color:var(--info)}.st-conflict .badge,.st-refusal .badge,.st-error .badge{background:var(--bad-bg);color:var(--bad)}
+.hd .meta{margin-left:auto;color:var(--faint)}
+.verdict{font-size:17px;line-height:1.5;font-weight:600;letter-spacing:-.005em;margin:0 0 4px;overflow-wrap:anywhere}
+.why{margin-top:14px;border-top:1px solid var(--line2);padding-top:12px}
+.why h6{margin:0 0 8px}
+.why ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.why li{display:grid;grid-template-columns:18px 1fr;gap:6px;color:#33343b;overflow-wrap:anywhere}
+.why li:before{content:"";width:6px;height:6px;border-radius:2px;background:var(--lime);border:1px solid var(--graphite);margin-top:9px;justify-self:center}
+.quote{margin:0;padding:12px 14px;background:var(--milk);border-left:3px solid #e0a21b;border-radius:6px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.ref{font:500 12px var(--mono);background:var(--lav-bg);color:#4a3fb0;border-radius:5px;padding:1px 6px;margin:0 1px;white-space:nowrap}
+.ref:hover{background:var(--lav);color:var(--graphite)}
+.warnbox{display:flex;gap:9px;margin-top:12px;padding:9px 12px;background:var(--warn-bg);color:#5d4100;border-radius:8px;font-size:13px}
+.warnbox svg{margin-top:3px}
+.used{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.used .cap{margin-right:2px}
+.dchip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--milk);border-radius:8px;padding:5px 9px;font-size:12.5px;font-weight:600;max-width:100%}
+.dchip:hover{border-color:var(--graphite);background:var(--white)}.dchip .mono{color:var(--faint);font-weight:400}.dchip.rep{border-color:#e7b3ad;color:var(--bad)}
+.acts{display:flex;gap:6px;align-items:center;border-top:1px solid var(--line2);padding:8px 14px;background:#fafaf7}
+.acts button{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--soft);padding:5px 9px;border-radius:7px}
+.acts button:hover{background:var(--line2);color:var(--ink)}
+.wait{display:flex;align-items:center;gap:12px;padding:18px 20px;color:var(--soft)}
+.dots{display:flex;gap:4px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--graphite);animation:b 1s infinite ease-in-out}.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.25;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.skel{height:10px;border-radius:5px;background:var(--line2);margin-top:9px}
+/* ввод */
+.compose{padding:12px 28px 16px;border-top:1px solid var(--line);background:var(--milk)}
+.compose form{max-width:780px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;background:var(--white);border:1.5px solid var(--graphite);border-radius:14px;padding:8px 8px 8px 16px}
+textarea{flex:1;resize:none;border:0;background:none;font:inherit;padding:7px 0;max-height:150px;min-height:28px;outline:none;color:var(--ink)}
+textarea::placeholder{color:var(--faint)}
+.send{display:inline-flex;align-items:center;gap:7px;background:var(--lime);color:var(--graphite);font-weight:700;border-radius:10px;padding:0 16px;height:40px;flex:none;transition:background .15s}
+.send:hover:not(:disabled){background:var(--lime-d)}
+.tip{max-width:780px;margin:7px auto 0;font-size:12px;color:var(--faint);padding:0 4px}
+/* источники */
+.proof{background:var(--white);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.proof header{display:flex;align-items:center;gap:8px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.proof header h3{margin:0;font-size:15px;flex:1}.proof header .pill{font:500 11px var(--mono);background:var(--graphite);color:var(--lime);border-radius:20px;padding:2px 9px}
+.xbtn{display:none;font-size:22px;line-height:1;color:var(--soft);padding:0 4px}
+.plist{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.empty{color:var(--soft);font-size:13.5px;padding:10px 4px;line-height:1.55}
+.empty .big{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:var(--lime);color:var(--graphite);font-size:20px;margin-bottom:12px}
+.src{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--white)}
+.src.flash{border-color:var(--graphite);box-shadow:0 0 0 2px var(--lime)}
+.src summary{list-style:none;cursor:pointer;display:flex;gap:10px;align-items:flex-start;padding:11px 13px;background:#fafaf7}
 .src summary::-webkit-details-marker{display:none}
-.src sup{font:13px var(--mono);color:var(--orange);vertical-align:baseline;padding-top:2px}
-.src h5{margin:0;font:700 15px/1.3 var(--serif)}
-.src .where{font:12.5px var(--mono);color:var(--blue);margin-top:2px}
-.src .flags{font-size:11.5px;color:var(--faint);margin-top:3px}
-.flag{font:600 10px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--green)}.flag.off{color:var(--red)}.flag.adj{color:var(--amber)}
-.inner{margin:10px 0 0 30px}
-blockquote{margin:0;padding:9px 12px;background:#fffdf6;border:1px solid var(--rule2);border-left:3px solid var(--mark);font:14.5px/1.55 var(--serif);white-space:pre-wrap;overflow-wrap:anywhere;max-height:230px;overflow:auto}
-dl{display:grid;grid-template-columns:78px 1fr;gap:2px 8px;margin:9px 0;font-size:12px}
-dt{color:var(--faint)}dd{margin:0;overflow-wrap:anywhere}
-.open{font-size:12.5px;color:var(--blue);border-bottom:1px solid currentColor}.open:hover{color:var(--orange)}
-.also{margin:16px 0 6px}
-.doc{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:7px 0;border-top:1px solid var(--rule2);font:14px/1.35 var(--serif)}
-.doc:hover{color:var(--orange)}
+.num{background:var(--graphite);color:var(--lime);font:500 11px var(--mono);border-radius:6px;padding:2px 7px;flex:none;margin-top:1px}
+.src h5{margin:0;font-size:13.5px;line-height:1.35;font-weight:700}
+.src .where{font:500 12px var(--mono);color:#4a3fb0;margin-top:2px}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{font:500 11px var(--mono);border-radius:5px;padding:2px 7px;background:var(--mute-bg);color:var(--mute)}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}.tag.off{background:var(--bad-bg);color:var(--bad)}.tag.adj{background:var(--warn-bg);color:var(--warn)}
+.src .body{padding:12px 13px;border-top:1px solid var(--line2);font-size:13px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:10px 0;font-size:12.5px}
+.kv dt{color:var(--faint)}.kv dd{margin:0;overflow-wrap:anywhere}
+.open{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px;color:var(--graphite);background:var(--lime);border-radius:8px;padding:6px 11px}
+.open:hover{background:var(--lime-d)}
+.sec{margin:6px 2px 0}
+.drow{display:flex;gap:8px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;background:var(--white)}
+.drow:hover{border-color:var(--graphite)}.drow span:first-child{flex:1}
+/* документы */
+.docs-head{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:2px 0 14px}
+.search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--line);border-radius:10px;padding:0 12px}
+.search input{flex:1;border:0;background:none;font:inherit;padding:10px 0;outline:none}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line);background:var(--white);border-radius:20px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--soft)}
+.seg button.on{background:var(--graphite);color:#fff;border-color:var(--graphite)}
+.dgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.dcard{background:var(--white);border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-align:left;display:flex;flex-direction:column;gap:8px}
+.dcard:hover{border-color:var(--graphite)}.dcard b{font-size:14px;line-height:1.35}.dcard small{color:var(--soft);font-size:12.5px}
+.state-box{background:var(--white);border:1px dashed var(--line);border-radius:12px;padding:28px;text-align:center;color:var(--soft)}
+.spin{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--graphite);border-radius:50%;animation:r .8s linear infinite;margin:0 auto 10px}
+@keyframes r{to{transform:rotate(360deg)}}
+/* просмотр документа */
+.veil{position:fixed;inset:0;background:#24252bb3;display:none;align-items:center;justify-content:center;z-index:30;padding:22px}
+.veil.show{display:flex}
+.page{background:var(--white);border-radius:16px;width:min(1040px,100%);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+.page header{display:flex;gap:12px;align-items:flex-start;padding:16px 22px;border-bottom:1px solid var(--line)}
+.page header>div{flex:1;min-width:0}.page h3{margin:5px 0 4px;font-size:17px;line-height:1.3}.page small{color:var(--soft);font-size:12.5px;overflow-wrap:anywhere}
+.page .x{font-size:24px;line-height:1;color:var(--soft)}
+.pbody{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:0;flex:1}
+.toc{border-right:1px solid var(--line);overflow:auto;padding:12px 10px;background:#fafaf7}
+.toc button{display:block;width:100%;text-align:left;font:500 12px var(--mono);padding:6px 9px;border-radius:6px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toc button:hover{background:var(--line2);color:var(--ink)}.toc button.on{background:var(--lime);color:var(--graphite)}
+.text{overflow:auto;padding:16px 22px 22px}
+.frag{padding:8px 12px;border-radius:8px;border-left:3px solid transparent;white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:4px}
+.frag small{display:block;font:500 11px var(--mono);color:var(--faint);margin-bottom:2px}
+.frag.hl{background:#f6ffd1;border-left-color:var(--graphite)}.frag.rm{background:var(--bad-bg);color:var(--bad);font-size:13px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--bad);color:#fff;padding:10px 16px;border-radius:10px;display:none;z-index:40;max-width:90vw;font-weight:600;font-size:13.5px}
+.toast.ok{background:var(--graphite);color:var(--lime)}
 
-/* ── документ ── */
-.veil{position:fixed;inset:0;background:#1b2130b3;display:none;place-items:center;z-index:20;padding:18px}
-.veil.show{display:grid}
-.page{background:var(--sheet);width:min(820px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:8px 8px 0 #0004}
-.page header{padding:18px 26px 12px;border-bottom:3px double var(--ink);display:flex;gap:12px;align-items:flex-start}
-.page header div{flex:1}.page h3{font:700 19px/1.25 var(--serif);margin:4px 0 3px}.page small{color:var(--soft);font-size:12px}
-.page .x{display:block}
-.text{overflow:auto;padding:18px 26px 26px;font:15.5px/1.65 var(--serif)}
-.frag{padding:5px 10px;margin:0 -10px;white-space:pre-wrap;overflow-wrap:anywhere}
-.frag small{display:block;font:11px var(--mono);color:var(--faint)}
-.frag.hl{background:var(--mark);box-shadow:-4px 0 0 var(--orange)}
-.frag.rm{font:13px var(--sans);color:var(--red);background:#f6dfda}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:9px 15px;display:none;z-index:30;max-width:90vw;font-size:13.5px}
-.toast.ok{background:var(--ink)}
-:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
-
-@media(max-width:1180px){.app{grid-template-columns:230px minmax(0,1fr)}.proof{position:fixed;right:0;top:0;bottom:0;width:min(410px,100%);transform:translateX(102%);transition:transform .2s;z-index:10;box-shadow:-6px 0 0 #0002}.proof.show{transform:none}.tog.p,.proof .x{display:block}}
-@media(max-width:760px){.app{grid-template-columns:minmax(0,1fr)}.rail{position:fixed;left:0;top:0;bottom:0;width:264px;transform:translateX(-102%);transition:transform .2s;z-index:11}.rail.show{transform:none}.tog.m{display:block}.scroll{padding:18px 16px}.bar,.compose,.warnline{padding-left:16px;padding-right:16px}.bar .hide{display:none}.intro h2{font-size:25px}.sheet{padding:15px 15px 12px}}
+@media(max-width:1280px){.app{grid-template-columns:260px minmax(0,1fr)}.proof{position:fixed;right:0;top:0;bottom:0;width:min(420px,100%);transform:translateX(102%);transition:transform .2s;z-index:20;box-shadow:-10px 0 30px #0003}.proof.show{transform:none}.tbtn.p,.xbtn{display:inline-flex}}
+@media(max-width:820px){.app{grid-template-columns:minmax(0,1fr)}.side{position:fixed;left:0;top:0;bottom:0;width:286px;transform:translateX(-102%);transition:transform .2s;z-index:25}.side.show{transform:none;box-shadow:10px 0 30px #0004}.tbtn.m{display:inline-flex}
+ .scroll{padding:16px}.top,.compose,.banner{padding-left:16px;padding-right:16px}.top .hint{display:none}.hero{padding:22px 20px}.hero h2{font-size:23px}.feats{grid-template-columns:1fr}.ans{margin-left:0}.dgrid{grid-template-columns:1fr}.pbody{grid-template-columns:1fr}.toc{display:none}.veil{padding:0}.page{max-height:100vh;height:100%;border-radius:0}.send span{display:none}.send{padding:0 13px}.verdict{font-size:16px}}
 </style>
 </head>
 <body>
 <div class="app">
-  <aside class="rail" id="rail">
-    <div class="mast"><span class="caps">ПСБ · юридическая справочная</span><b>Legal&nbsp;AI<i>.</i></b></div>
-    <button class="new" id="newChat"><span>Новое обращение</span><span>+</span></button>
-    <h4 class="caps">Реестр обращений</h4>
-    <div class="reg" id="reg"></div>
-    <button class="kb" id="showDocs"><span>База знаний</span><span id="kbCount">→</span></button>
-    <div class="state" id="state"><b><span class="sq"></span>Проверка сервера…</b></div>
+  <aside class="side" id="side">
+    <div class="brand"><div class="mark">§</div><div><b>PSB Legal AI</b><small>юридический ассистент</small></div></div>
+    <button class="new" id="newChat"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Новый диалог</button>
+    <nav class="nav">
+      <button id="navChat" class="on"><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Диалоги</button>
+      <button id="navDocs"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7M9 17h7"/></svg>База знаний<span class="count" id="kbCount"></span></button>
+    </nav>
+    <h4 class="cap">История запросов</h4>
+    <div class="hist" id="hist"></div>
+    <div class="svc" id="svc"><b><span class="led"></span>Проверка сервера…</b></div>
   </aside>
 
-  <main class="desk">
-    <div class="bar">
-      <button class="tog m" id="menuBtn">Реестр</button>
-      <span id="today"></span><span class="hide" id="kbLine"></span>
-      <span class="sp"></span>
-      <span class="hide">Ответы — только по документам базы</span>
-      <button class="tog p" id="proofBtn">Основания</button>
+  <main class="main">
+    <div class="top">
+      <button class="tbtn m" id="menuBtn"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>Меню</button>
+      <h1 id="title">Новый диалог</h1>
+      <span class="hint">Ответы только по базе знаний, со ссылками на пункты</span>
+      <button class="tbtn p" id="proofBtn"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5"/></svg>Источники</button>
     </div>
-    <div class="warnline" id="warnline"></div>
+    <div class="banner" id="banner"></div>
     <div class="scroll" id="scroll"><div class="col" id="col"></div></div>
-    <div class="compose">
+    <div class="compose" id="compose">
       <form id="form">
-        <textarea id="input" rows="1" placeholder="Сформулируйте вопрос: договор, контрагент, период…" maxlength="4000"></textarea>
-        <button class="go" id="send" type="submit">Спросить →</button>
+        <textarea id="input" rows="1" placeholder="Задайте вопрос: договор, контрагент, период, статья закона…" maxlength="4000" aria-label="Вопрос ассистенту"></textarea>
+        <button class="send" id="send" type="submit"><span>Отправить</span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </form>
-      <div class="tip">Enter — отправить · Shift+Enter — новая строка · Внешние источники не используются; если сведений в базе нет, ассистент скажет об этом.</div>
+      <div class="tip">Enter — отправить · Shift+Enter — новая строка. Внешние источники не используются; если сведений в базе нет, ассистент скажет об этом.</div>
     </div>
   </main>
 
   <aside class="proof" id="proof">
-    <header><div><span class="caps">К заключению</span><h3>Основания</h3></div><button class="x" id="proofClose" aria-label="Закрыть">×</button></header>
+    <header><h3>Подтверждающие источники</h3><span class="pill" id="pcount">0</span><button class="xbtn" id="proofClose" aria-label="Закрыть">×</button></header>
     <div class="plist" id="plist"></div>
   </aside>
 </div>
 
-<div class="veil" id="veil"><div class="page">
-  <header><div><span class="caps" id="dKind"></span><h3 id="dTitle"></h3><small id="dMeta"></small></div><button class="x" id="dClose" aria-label="Закрыть">×</button></header>
-  <div class="text" id="dText"></div>
+<div class="veil" id="veil"><div class="page" role="dialog" aria-modal="true">
+  <header><div><span class="cap" id="dKind"></span><h3 id="dTitle"></h3><small id="dMeta"></small></div><button class="x" id="dClose" aria-label="Закрыть">×</button></header>
+  <div class="pbody"><nav class="toc" id="toc" aria-label="Структура документа"></nav><div class="text" id="dText"></div></div>
 </div></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pad = n => String(n).padStart(2, "0");
-const STORE = "psb-legal-ai-register-v3";
-const EMPTY_PROOF = `<div class="hintp">Здесь появятся положения документов, на которых основано заключение: точная выдержка, реквизиты и статус документа.</div>`;
-let chats = [], current = null, busy = false;
+const STORE = "psb-legal-ai-workspace-v4";
+const I = {
+  ok:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>', part:'<svg viewBox="0 0 24 24"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>',
+  ask:'<svg viewBox="0 0 24 24"><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 1-1 1.7M12 17.5v.01"/><circle cx="12" cy="12" r="9"/></svg>',
+  none:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>', conf:'<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg>',
+  warn:'<svg viewBox="0 0 24 24"><path d="M12 4l9 16H3zM12 10v4M12 17.5v.01"/></svg>', copy:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg>',
+  doc:'<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5"/></svg>', arrow:'<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>', stop:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>'
+};
+/* Статусы достоверности: подпись, цвет (класс st-*) и значок. */
+const STATUS = {
+  answer:["Подтверждено источниками", I.ok], partial:["Подтверждено частично", I.part], clarify:["Требуется уточнение", I.ask],
+  insufficient:["Недостаточно информации", I.none], conflict:["Обнаружено противоречие", I.conf], false_premise:["Исправлена предпосылка вопроса", I.warn],
+  out_of_scope:["Вне компетенции ассистента", I.none], refusal:["Отказ: просьба о нарушении", I.stop], extractive:["Дословные положения, без генерации", I.doc], error:["Ошибка", I.warn]
+};
+const WHY = {insufficient:"Что есть в базе", clarify:"Что сказано в подходящих документах", out_of_scope:"Пояснение", refusal:"Требования по документам", conflict:"Противоречащие положения", partial:"Что подтверждено документами", false_premise:"Что сказано в документах"};
+let chats = [], current = null, busy = false, view = "chat", docs = null, docFilter = "all", docQuery = "", lastHealth = null;
 
 function load(){ try{ chats = JSON.parse(localStorage.getItem(STORE)) || []; }catch{ chats = []; } }
 function save(){ try{ localStorage.setItem(STORE, JSON.stringify(chats.slice(0, 40))); }catch{} }
 function toast(text, ok){ const t=$("toast"); t.textContent=text; t.className="toast"+(ok?" ok":""); t.style.display="block"; clearTimeout(toast.t); toast.t=setTimeout(()=>t.style.display="none", 4500); }
-function stamp(ts){ const d=new Date(ts); return `${pad(d.getDate())}.${pad(d.getMonth()+1)} · ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function stamp(ts){ const d=new Date(ts); return `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
 async function api(path, options){
   let response;
   try{ response = await fetch(path, options); }
-  catch{ throw new Error("Сервер недоступен. Проверьте, что приложение запущено."); }
+  catch{ const e = new Error("Нет связи с сервером. Проверьте, что приложение запущено, и повторите запрос."); e.network = true; throw e; }
   if(!response.ok){ let detail=""; try{ detail=(await response.json()).detail; }catch{} throw new Error(typeof detail==="string"&&detail ? detail : "Ошибка сервера ("+response.status+")"); }
   return response.json();
 }
 
-function newChat(){ current = {id: Date.now().toString(36), ts: Date.now(), title: "", messages: []}; render(); showProof(null); $("input").focus(); }
-function openChat(id){ current = chats.find(c => c.id === id) || current; render(); showProof([...current.messages].reverse().find(m => m.role==="assistant") || null); $("rail").classList.remove("show"); }
-function removeChat(id){ chats = chats.filter(c => c.id !== id); save(); if(current.id === id) newChat(); else renderReg(); }
+function newChat(){ current = {id: Date.now().toString(36), ts: Date.now(), title: "", messages: []}; setView("chat"); render(); showProof(null); $("input").focus(); }
+function openChat(id){ current = chats.find(c => c.id === id) || current; setView("chat"); render(); showProof([...current.messages].reverse().find(m => m.role==="assistant") || null); $("side").classList.remove("show"); }
+function removeChat(id){ chats = chats.filter(c => c.id !== id); save(); if(current.id === id) newChat(); else renderHist(); }
+function setView(v){ view = v; $("navChat").classList.toggle("on", v==="chat"); $("navDocs").classList.toggle("on", v==="docs"); $("compose").style.display = v==="chat" ? "" : "none"; $("side").classList.remove("show"); if(v==="docs") renderDocs(); else render(); }
 
-function renderReg(){
-  $("reg").innerHTML = chats.length ? chats.map((c, i) => `<div class="row ${c.id===current.id?"on":""}" data-id="${c.id}"><span class="n">${pad(chats.length-i)}</span><span class="t">${esc(c.title)}<small>${stamp(c.ts)}</small></span><button data-del="${c.id}" title="Удалить из реестра">×</button></div>`).join("") : `<div class="none">Обращений пока нет</div>`;
+function renderHist(){
+  $("hist").innerHTML = chats.length ? chats.map(c => `<div class="h ${c.id===current.id&&view==="chat"?"on":""}" data-id="${c.id}"><span class="t">${esc(c.title||"Новый диалог")}</span><span class="d">${stamp(c.ts)}</span><button class="x" data-del="${c.id}" title="Удалить диалог" aria-label="Удалить диалог">×</button></div>`).join("") : `<div class="none">История пока пуста: задайте первый вопрос</div>`;
 }
-/* Ссылки на пункты и статьи в тексте ответа ведут к соответствующему основанию. */
+/* Ссылки на пункты и статьи в тексте ведут к соответствующему основанию. */
 function linkRefs(text, cits, i){
-  return esc(text).replace(/(пп?\.\s?\d+(?:\.\d+)+|ст\.\s?\d+(?:\.\d+)*)/g, m => {
+  return esc(text).replace(/(пп?\.\s?\d+(?:\.\d+)+|ст\.\s?\d+(?:\.\d+)*|ч\.\s?\d+(?:\.\d+)*)/g, m => {
     const num = m.replace(/^[^\d]+/, "");
-    const hit = cits.find(c => m.startsWith("ст") ? c.document.short_title.includes("ст. "+num) : c.label.replace(/^[^\d]+/, "") === num);
+    const hit = cits.find(c => m.startsWith("ст") ? c.document.short_title.includes("ст. "+num) : c.label.replace(/^[^\d]+/, "") === num || c.label.startsWith((m.startsWith("ч")?"ч. ":"п. ")+num));
     return hit ? `<button class="ref" data-cite="${i}:${esc(hit.id)}" title="Показать основание">${m}</button>` : m;
   });
 }
-function sheet(m, i){
-  const r = m.data || {}, cits = r.citations || [];
-  const foot = cits.map((c, k) => `<button class="fn" data-cite="${i}:${esc(c.id)}"><sup>${k+1}</sup><span>${esc(c.document.short_title)}${c.document.counterparties.length?" · "+esc(c.document.counterparties.join(", ")):""}${c.label&&c.label!=="фрагмент"?` — <em>${esc(c.label)}</em>`:""}</span></button>`).join("");
-  const notes = [...(r.notes||[]), ...(r.issues||[]).map(x => "Не подтверждено проверкой: "+x)].map(n => `<div class="margin">${esc(n)}</div>`).join("");
-  const info = r.timings ? `${r.timings.total.toFixed(1)} с · поиск: ${esc(r.search_mode||"")}${r.mode==="llm"?" · DeepSeek":""}` : "";
-  return `<div class="sheet"><div class="a-head"><span class="caps">Заключение</span><span class="stamp st-${esc(m.status||"error")}">${esc(m.label||"Ошибка")}</span></div>
-    <div class="body">${linkRefs(m.content, cits, i)}</div>${notes}
-    ${foot?`<div class="foot"><div class="caps" style="margin-bottom:5px">Основания</div>${foot}</div>`:""}
-    <div class="acts"><button data-copy="${i}">Скопировать</button>${cits.length||(r.consulted||[]).length?`<button data-ev="${i}">Открыть основания</button>`:""}<span>${info}</span></div></div>`;
+function sentences(text){ return text.split(/(?<!(?:^|[\s(])(?:п|пп|ст|ч|г|ред|абз|стр)\.)(?<=[.!?])\s+(?=[А-ЯЁA-Z«\d])/).map(s=>s.trim()).filter(Boolean); }
+function answerCard(m, i){
+  const r = m.data || {}, cits = r.citations || [], st = m.status || "error", [label, icon] = STATUS[st] || STATUS.error;
+  let body;
+  if(st === "extractive") body = `<blockquote class="quote">${linkRefs(m.content, cits, i)}</blockquote>`;
+  else{
+    const parts = sentences(m.content), head = parts.shift() || m.content;
+    body = `<p class="verdict">${linkRefs(head, cits, i)}</p>` + (parts.length ? `<div class="why"><h6 class="cap">${WHY[st]||"Обоснование"}</h6><ul>${parts.map(s => `<li><span>${linkRefs(s, cits, i)}</span></li>`).join("")}</ul></div>` : "");
+  }
+  const notes = [...(r.notes||[]), ...(r.issues||[]).map(x => "Не подтверждено проверкой: "+x)].map(n => `<div class="warnbox">${I.warn}<span>${esc(n)}</span></div>`).join("");
+  const seen = new Map(); cits.forEach(c => { if(!seen.has(c.document.id)) seen.set(c.document.id, c); });
+  const used = [...seen.values()].map(c => { const d=c.document; return `<button class="dchip ${d.repealed?"rep":""}" data-doc="${esc(d.id)}" title="${esc(d.title)}">${I.doc}<span>${esc(d.short_title)}</span>${d.repealed?`<span class="mono">утратил силу</span>`:""}</button>`; }).join("");
+  const info = r.timings ? `${r.timings.total.toFixed(1)} с · ${esc(r.search_mode||"")}` : "";
+  const hasSrc = cits.length || (r.consulted||[]).length;
+  return `<article class="ans st-${esc(st)}"><div class="bar"></div><div class="in">
+    <div class="hd"><span class="badge">${icon}${esc(st === "error" && m.label ? m.label : label)}</span><span class="meta mono">${info}</span></div>
+    ${body}${notes}${used?`<div class="used"><span class="cap">Документы</span>${used}</div>`:""}</div>
+    <div class="acts"><button data-copy="${i}">${I.copy}Копировать</button>${hasSrc?`<button data-ev="${i}">${I.doc}Источники (${cits.length})</button>`:""}</div></article>`;
 }
 function render(){
-  renderReg();
+  renderHist(); if(view!=="chat") return;
+  $("title").textContent = current.title || "Новый диалог";
   const col = $("col");
   if(!current.messages.length){
-    col.innerHTML = `<div class="intro"><span class="caps">Справка по базе знаний</span><h2>Что сказано в документах — и где именно</h2><p>Задайте вопрос по договору, регламенту или статье закона. Заключение опирается только на базу знаний: к каждому выводу приложен пункт документа, а если сведений нет — будет прямой отказ с объяснением, чего не хватает.</p><span class="caps">Примеры обращений</span><div id="examples" style="margin-top:8px"></div></div>`;
-    api("/api/examples").then(list => { const box=$("examples"); if(box) box.innerHTML = list.map((q, i) => `<button class="ask" data-q="${esc(q)}"><span class="n">${pad(i+1)}</span><span class="q">${esc(q)}</span><span class="a">→</span></button>`).join(""); }).catch(()=>{});
+    col.innerHTML = `<section class="hero"><span class="tag">Юридический ассистент банка</span><h2>Найду положение в документах и покажу, на что опираюсь</h2><p>Спрашивайте по договорам, внутренним регламентам и статьям законов из базы знаний. К каждому выводу — пункт документа; если данных не хватает, скажу об этом прямо.</p></section>
+    <div class="feats"><div class="feat"><div class="ic">${I.ok}</div><b>Вывод со ссылкой</b><span>Каждое утверждение сверяется с текстом документа.</span></div>
+    <div class="feat"><div class="ic">${I.none}</div><b>Честный отказ</b><span>Нет данных в базе — ассистент не домысливает.</span></div>
+    <div class="feat"><div class="ic">${I.part}</div><b>Редакции и даты</b><span>Учитывает редакцию на дату события и доп. соглашения.</span></div></div>
+    <span class="cap">Попробуйте спросить</span><div id="examples"></div>`;
+    api("/api/examples").then(list => { const box=$("examples"); if(box) box.innerHTML = list.length ? list.map((q, i) => `<button class="ex" data-q="${esc(q)}"><span class="n">${pad(i+1)}</span><span class="q">${esc(q)}</span><span class="go">${I.arrow}</span></button>`).join("") : ""; }).catch(()=>{});
     return;
   }
-  let n = 0, html = "";
+  let html = "", n = 0;
   current.messages.forEach((m, i) => {
-    if(m.role === "user"){ n++; html += `${n>1?"</div>":""}<div class="entry"><div class="q-head"><span class="caps">Вопрос ${pad(n)}</span></div><div class="q-text">${esc(m.content)}</div>`; }
-    else html += sheet(m, i);
+    if(m.role === "user"){ if(n++) html += "</div>"; html += `<div class="turn"><div class="me"><div class="av">${pad(n)}</div><div class="q">${esc(m.content)}</div></div>`; }
+    else html += answerCard(m, i);
   });
-  if(busy) html += `<div class="sheet"><div class="wait">Ищу положения в базе и сверяю ответ с источниками</div></div>`;
+  if(busy) html += `<article class="ans"><div class="bar"></div><div class="wait"><div class="dots"><i></i><i></i><i></i></div><div style="flex:1"><div>Ищу положения в базе знаний и проверяю ответ по источникам…</div><div class="skel" style="width:80%"></div><div class="skel" style="width:55%"></div></div></div></article>`;
   col.innerHTML = html + "</div>";
   $("scroll").scrollTop = $("scroll").scrollHeight;
 }
 function showProof(m, focusId){
-  const box = $("plist"), r = m && m.data;
-  if(!r || (!(r.citations||[]).length && !(r.consulted||[]).length)){ box.innerHTML = m ? `<div class="hintp">К этому заключению оснований нет: в базе не нашлось положений, на которые можно опереться.</div>` : EMPTY_PROOF; return; }
-  const cits = (r.citations||[]).map((c, k) => { const d=c.document; return `<details class="src" ${(!focusId||focusId===c.id)?"open":""} id="src-${esc(c.id)}">
-    <summary><sup>${k+1}</sup><div><h5>${esc(d.short_title)}</h5>${c.label&&c.label!=="фрагмент"?`<div class="where">${esc(c.label)}</div>`:""}
-      <div class="flags">${esc(d.category)} · <span class="flag ${d.repealed?"off":""}">${esc(d.status)}</span>${c.verified?" · цитата сверена с текстом":` · <span class="flag adj">цитата уточнена по тексту</span>`}</div></div></summary>
-    <div class="inner"><blockquote>${esc(c.quote)}</blockquote>
-      <dl><dt>Документ</dt><dd>${esc(d.title)}</dd><dt>Файл</dt><dd>${esc(d.filename)}</dd>${d.validity?`<dt>Действие</dt><dd>${esc(d.validity)}</dd>`:""}${d.counterparties.length?`<dt>Контрагент</dt><dd>${esc(d.counterparties.join(", "))}</dd>`:""}<dt>Метка</dt><dd>${esc(c.id)}</dd></dl>
-      ${d.security_note?`<div class="margin" style="margin-bottom:8px">${esc(d.security_note)}</div>`:""}
-      <button class="open" data-doc="${esc(d.id)}" data-chunk="${esc(c.chunk_id)}">Открыть документ на этом месте</button></div></details>`; }).join("");
-  const other = (r.consulted||[]).map(d => `<button class="doc" data-doc="${esc(d.id)}"><span>${esc(d.short_title)}</span><span class="flag ${d.repealed?"off":""}">${esc(d.status)}</span></button>`).join("");
-  box.innerHTML = cits + (other ? `<div class="caps also">Также просмотрены при поиске</div>${other}` : "");
-  if(focusId){ const el=$("src-"+focusId); if(el) el.scrollIntoView({block:"nearest"}); }
+  const box = $("plist"), r = m && m.data, cits = (r && r.citations) || [], other = (r && r.consulted) || [];
+  $("pcount").textContent = cits.length;
+  if(!r || (!cits.length && !other.length)){
+    box.innerHTML = m && m.status === "error" ? `<div class="empty"><div class="big">${I.warn}</div><b>Ответ не получен</b><br>Запрос не дошёл до ассистента, поэтому источников нет. Повторите вопрос, когда сервер станет доступен.</div>`
+      : m ? `<div class="empty"><div class="big">${I.none}</div><b>Оснований для этого ответа нет</b><br>В базе не нашлось положений, на которые можно опереться. Это не значит, что вопрос неправомерен: возможно, нужного документа нет в базе знаний.</div>`
+      : `<div class="empty"><div class="big">${I.doc}</div><b>Здесь появятся источники</b><br>Для каждого ответа — документ, пункт, точная выдержка и статус редакции. Любой фрагмент можно открыть в документе.</div>`;
+    return;
+  }
+  const items = cits.map((c, k) => { const d=c.document; return `<details class="src ${focusId===c.id?"flash":""}" ${(!focusId||focusId===c.id)?"open":""} id="src-${esc(c.id)}">
+    <summary><span class="num">${k+1}</span><div><h5>${esc(d.short_title)}</h5>${c.label&&c.label!=="фрагмент"?`<div class="where">${esc(c.label)}</div>`:""}
+      <div class="tags"><span class="tag">${esc(d.category)}</span><span class="tag ${d.repealed?"off":"ok"}">${esc(d.status)}</span>${c.verified?`<span class="tag ok">цитата сверена</span>`:`<span class="tag adj">цитата уточнена по тексту</span>`}</div></div></summary>
+    <div class="body"><blockquote class="quote">${esc(c.quote)}</blockquote>
+      <dl class="kv"><dt>Документ</dt><dd>${esc(d.title)}</dd><dt>Файл</dt><dd class="mono">${esc(d.filename)}</dd>${d.validity?`<dt>Действие</dt><dd>${esc(d.validity)}</dd>`:""}${d.counterparties.length?`<dt>Контрагент</dt><dd>${esc(d.counterparties.join(", "))}</dd>`:""}<dt>Метка</dt><dd class="mono">${esc(c.id)}</dd></dl>
+      ${d.security_note?`<div class="warnbox">${I.warn}<span>${esc(d.security_note)}</span></div>`:""}
+      <button class="open" data-doc="${esc(d.id)}" data-chunk="${esc(c.chunk_id)}">Открыть в документе${I.arrow}</button></div></details>`; }).join("");
+  const rest = other.map(d => `<button class="drow" data-doc="${esc(d.id)}"><span>${esc(d.short_title)}</span><span class="tag ${d.repealed?"off":"ok"}">${esc(d.status)}</span></button>`).join("");
+  box.innerHTML = items + (rest ? `<div class="cap sec">Также просмотрены при поиске</div>${rest}` : "");
+  if(focusId){ const el=$("src-"+focusId); if(el) el.scrollIntoView({block:"nearest", behavior:"smooth"}); }
+}
+
+/* ── раздел «База знаний» ── */
+async function renderDocs(){
+  $("title").textContent = "База знаний"; renderHist();
+  const col = $("col");
+  col.innerHTML = `<div class="state-box"><div class="spin"></div>Загружаю список документов…</div>`;
+  try{
+    if(!docs) docs = await api("/api/documents");
+    if(view!=="docs") return;
+    if(!docs.length){ col.innerHTML = `<div class="state-box"><b>В базе знаний нет документов</b><br>Положите архив в data/documents/knowledge-base.zip или укажите KB_PATH и перезапустите приложение.</div>`; return; }
+    drawDocs();
+  }catch(e){ col.innerHTML = `<div class="state-box"><b>Не удалось загрузить документы</b><br>${esc(e.message)}<br><br><button class="open" id="retryDocs">Повторить</button></div>`; const b=$("retryDocs"); if(b) b.onclick = () => { docs=null; renderDocs(); }; }
+}
+function drawDocs(){
+  const q = docQuery.trim().toLowerCase();
+  const kinds = {all:"Все", company:"Документы компании", law:"Законы", repealed:"Утратили силу"};
+  const list = docs.filter(d => (docFilter==="all" || (docFilter==="law"&&d.category==="Закон") || (docFilter==="company"&&d.category!=="Закон") || (docFilter==="repealed"&&d.repealed)) && (!q || (d.title+" "+d.short_title+" "+d.filename+" "+d.counterparties.join(" ")).toLowerCase().includes(q)));
+  $("col").innerHTML = `<div class="cap" style="margin-bottom:8px">${docs.length} документов — единственный источник ответов</div>
+    <div class="docs-head"><label class="search">${I.search}<input id="dq" placeholder="Поиск: номер договора, контрагент, статья…" value="${esc(docQuery)}" aria-label="Поиск по документам"></label>
+    <div class="seg">${Object.entries(kinds).map(([k,v]) => `<button data-f="${k}" class="${docFilter===k?"on":""}">${v}</button>`).join("")}</div></div>
+    ${list.length ? `<div class="dgrid">${list.map(d => `<button class="dcard" data-doc="${esc(d.id)}"><b>${esc(d.short_title)}</b><small>${esc(d.title)}</small><span class="tags"><span class="tag">${esc(d.category)}</span><span class="tag ${d.repealed?"off":"ok"}">${esc(d.status)}</span>${d.validity?`<span class="tag">${esc(d.validity)}</span>`:""}</span></button>`).join("")}</div>` : `<div class="state-box">Ничего не найдено. Измените запрос или фильтр.</div>`}`;
+  const inp = $("dq"); inp.addEventListener("input", () => { docQuery = inp.value; const pos = inp.selectionStart; drawDocs(); const n=$("dq"); n.focus(); n.setSelectionRange(pos,pos); });
 }
 async function openDoc(id, chunkId){
   try{
     const d = await api("/api/documents/"+encodeURIComponent(id));
     $("dKind").textContent = d.category + " · " + d.status; $("dTitle").textContent = d.title;
     $("dMeta").textContent = [d.validity, d.filename].filter(Boolean).join(" · ");
-    $("dText").innerHTML = (d.security_note?`<div class="margin" style="margin-bottom:12px">${esc(d.security_note)}</div>`:"") + d.chunks.map(c => `<div class="frag ${c.chunk_id===chunkId?"hl":""} ${c.removed?"rm":""}" id="f-${esc(c.chunk_id)}">${c.edition?`<small>${esc(c.edition)}</small>`:""}${esc(c.text)}</div>`).join("");
+    $("toc").innerHTML = d.chunks.map(c => `<button data-go="${esc(c.chunk_id)}" class="${c.chunk_id===chunkId?"on":""}" title="${esc(c.label||"фрагмент")}">${esc(c.label||"фрагмент")}</button>`).join("");
+    $("dText").innerHTML = (d.security_note?`<div class="warnbox" style="margin-bottom:12px">${I.warn}<span>${esc(d.security_note)}</span></div>`:"") + d.chunks.map(c => `<div class="frag ${c.chunk_id===chunkId?"hl":""} ${c.removed?"rm":""}" id="f-${esc(c.chunk_id)}">${c.edition?`<small>${esc(c.edition)}</small>`:""}${esc(c.text)}</div>`).join("");
     $("veil").classList.add("show");
     const el = chunkId && $("f-"+chunkId); if(el) el.scrollIntoView({block:"center"}); else $("dText").scrollTop = 0;
   }catch(e){ toast(e.message); }
 }
-async function showDocs(){
-  try{
-    const list = await api("/api/documents");
-    $("dKind").textContent = "Состав"; $("dTitle").textContent = "База знаний"; $("dMeta").textContent = `${list.length} документов — источник всех заключений`;
-    $("dText").innerHTML = list.map(d => `<button class="doc" data-doc="${esc(d.id)}"><span>${esc(d.short_title)}<br><small style="font:12px var(--sans);color:var(--faint)">${esc(d.category)}${d.validity?" · "+esc(d.validity):""}</small></span><span class="flag ${d.repealed?"off":""}">${esc(d.status)}</span></button>`).join("");
-    $("veil").classList.add("show"); $("rail").classList.remove("show");
-  }catch(e){ toast(e.message); }
-}
 async function send(text){
   text = text.trim(); if(!text || busy) return;
-  if(!current.messages.length){ current.title = text.slice(0, 90); chats.unshift(current); }
+  if(view!=="chat") setView("chat");
+  if(!current.messages.length){ current.title = text.slice(0, 80); chats.unshift(current); }
   current.messages.push({role:"user", content:text});
   busy = true; $("send").disabled = true; $("input").value = ""; autosize(); render();
   let message;
@@ -275,45 +376,47 @@ async function send(text){
     const payload = current.messages.filter(m => m.role==="user" || m.status!=="error").map(m => ({role:m.role, content:m.content}));
     const r = await api("/api/chat", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({messages:payload})});
     message = {role:"assistant", content:r.answer, status:r.status, label:r.status_label, data:r};
-  }catch(e){ message = {role:"assistant", content:e.message, status:"error", label:"Ошибка", data:null}; toast(e.message); }
+  }catch(e){ message = {role:"assistant", content:(e.network?"Ошибка подключения. ":"Ошибка сервера. ")+e.message, status:"error", label:e.network?"Ошибка подключения":"Ошибка сервера", data:null}; toast(e.message); }
   current.messages.push(message);
   busy = false; $("send").disabled = false; save(); render(); showProof(message); $("input").focus();
 }
 function autosize(){ const t=$("input"); t.style.height="auto"; t.style.height=Math.min(t.scrollHeight,150)+"px"; }
+function banner(kind, text){ const b=$("banner"); b.className = "banner"+(text?" show "+kind:""); b.innerHTML = text ? (kind==="info"?'<span class="spin" style="margin:0;width:14px;height:14px;border-width:2px"></span>':I.warn)+`<span>${text}</span>` : ""; }
 async function health(){
-  const el = $("state"), warn = $("warnline");
+  const el = $("svc");
   try{
-    const h = await api("/api/health");
-    if(h.status==="error"){ el.innerHTML = `<b><span class="sq bad"></span>База знаний не загружена</b>${esc(h.error)}`; return; }
-    if(h.status==="starting"){ el.innerHTML = `<b><span class="sq warn"></span>Индексация базы знаний…</b>`; return; }
-    const errors = Object.keys(h.api_errors||{});
-    el.innerHTML = `<b><span class="sq ${h.llm&&!errors.length?"ok":"warn"}"></span>${h.llm?"DeepSeek на связи":"DeepSeek не подключён"}</b>${h.llm?esc(h.llm_model)+"<br>":""}Поиск: ${esc(h.search_mode)}${h.indexing?" · считаются эмбеддинги":""}<br>${h.documents} документов · ${h.chunks} фрагментов`;
-    $("kbCount").textContent = h.documents+" →"; $("kbLine").innerHTML = ` · в базе <b>${h.documents}</b> документов`;
-    warn.style.display = h.llm && !errors.includes("/chat/completions") ? "none" : "block";
-    warn.textContent = h.llm ? "Модель DeepSeek сейчас не отвечает — вместо заключения показываются дословные положения документов." : "Модель DeepSeek не подключена (нет ключа в .env) — вместо заключения показываются дословные положения документов.";
-  }catch{ el.innerHTML = `<b><span class="sq bad"></span>Сервер недоступен</b>`; }
+    const h = await api("/api/health"); lastHealth = h;
+    if(h.status==="error"){ el.innerHTML = `<b><span class="led bad"></span>База знаний не загружена</b>${esc(h.error)}`; banner("bad","База знаний не загружена: "+esc(h.error)+". Проверьте архив и перезапустите приложение."); return; }
+    if(h.status==="starting"){ el.innerHTML = `<b><span class="led warn"></span>Индексация базы знаний…</b>`; banner("info","Идёт индексация документов. Первые ответы могут задержаться."); return; }
+    const errors = Object.keys(h.api_errors||{}), llmOk = h.llm && !errors.includes("/chat/completions");
+    el.innerHTML = `<b><span class="led ${llmOk&&!errors.length?"ok":"warn"}"></span>${h.llm?"Модель на связи":"Модель не подключена"}</b>${h.llm?`<span class="mono">${esc(h.llm_model)}</span><br>`:""}Поиск: ${esc(h.search_mode)}${h.indexing?" · считаются эмбеддинги":""}<br>${h.documents} документов · ${h.chunks} фрагментов`;
+    $("kbCount").textContent = h.documents;
+    banner("warn", llmOk ? "" : (h.llm ? "Модель сейчас не отвечает — вместо заключения показываются дословные положения документов." : "Модель не подключена (нет ключа в .env) — вместо заключения показываются дословные положения документов."));
+  }catch{ el.innerHTML = `<b><span class="led bad"></span>Сервер недоступен</b>Нет ответа от /api/health`; banner("bad","Нет связи с сервером. Запросы будут завершаться ошибкой, пока он не станет доступен."); }
 }
 
-$("today").innerHTML = "<b>" + new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"}) + "</b>";
 $("form").addEventListener("submit", e => { e.preventDefault(); send($("input").value); });
 $("input").addEventListener("keydown", e => { if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); send($("input").value); } });
 $("input").addEventListener("input", autosize);
-$("newChat").addEventListener("click", () => { newChat(); $("rail").classList.remove("show"); });
-$("showDocs").addEventListener("click", showDocs);
-$("menuBtn").addEventListener("click", () => $("rail").classList.toggle("show"));
+$("newChat").addEventListener("click", newChat);
+$("navChat").addEventListener("click", () => setView("chat"));
+$("navDocs").addEventListener("click", () => setView("docs"));
+$("menuBtn").addEventListener("click", () => $("side").classList.toggle("show"));
 $("proofBtn").addEventListener("click", () => $("proof").classList.toggle("show"));
 $("proofClose").addEventListener("click", () => $("proof").classList.remove("show"));
 $("dClose").addEventListener("click", () => $("veil").classList.remove("show"));
 $("veil").addEventListener("click", e => { if(e.target.id==="veil") $("veil").classList.remove("show"); });
-document.addEventListener("keydown", e => { if(e.key==="Escape") ["veil","proof","rail"].forEach(id => $(id).classList.remove("show")); });
+document.addEventListener("keydown", e => { if(e.key==="Escape") ["veil","proof","side"].forEach(id => $(id).classList.remove("show")); });
 document.addEventListener("click", e => {
-  const t = e.target.closest("[data-q],[data-id],[data-del],[data-cite],[data-copy],[data-ev],[data-doc]"); if(!t) return;
+  const t = e.target.closest("[data-q],[data-id],[data-del],[data-cite],[data-copy],[data-ev],[data-doc],[data-f],[data-go]"); if(!t) return;
   if(t.dataset.del){ e.stopPropagation(); removeChat(t.dataset.del); }
   else if(t.dataset.q) send(t.dataset.q);
   else if(t.dataset.id) openChat(t.dataset.id);
   else if(t.dataset.cite){ const k = t.dataset.cite.indexOf(":"); showProof(current.messages[+t.dataset.cite.slice(0,k)], t.dataset.cite.slice(k+1)); $("proof").classList.add("show"); }
   else if(t.dataset.ev){ showProof(current.messages[+t.dataset.ev]); $("proof").classList.add("show"); }
-  else if(t.dataset.copy){ navigator.clipboard.writeText(current.messages[+t.dataset.copy].content).then(()=>toast("Заключение скопировано", true)).catch(()=>toast("Не удалось скопировать")); }
+  else if(t.dataset.copy){ navigator.clipboard.writeText(current.messages[+t.dataset.copy].content).then(()=>toast("Ответ скопирован", true)).catch(()=>toast("Не удалось скопировать")); }
+  else if(t.dataset.f){ docFilter = t.dataset.f; drawDocs(); }
+  else if(t.dataset.go){ const el=$("f-"+t.dataset.go); if(el){ el.scrollIntoView({block:"start", behavior:"smooth"}); document.querySelectorAll(".toc button").forEach(b=>b.classList.toggle("on", b===t)); } }
   else if(t.dataset.doc) openDoc(t.dataset.doc, t.dataset.chunk);
 });
 load(); newChat(); health(); setInterval(health, 15000);

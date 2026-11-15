@@ -68,3 +68,12 @@ def test_text_normalization():
     assert tx.find_contract_numbers("п-17-2024 и A-08/2024") == ["П-17/2024", "А-08/2024"]
     assert {450000.0, 5.0, 6, 12000000.0} <= tx.extract_numbers("450 000 рублей, 5 (пяти) дней, шести месяцев, 12 млн")
     assert str(tx.find_dates("с 1 марта 2025 г.")[0][0]) == "2025-03-01"
+
+
+def test_source_files_have_no_control_characters():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    for path in [*root.joinpath("app").rglob("*.py"), root / "solution.py"]:
+        bad = {c for c in path.read_text(encoding="utf-8") if ord(c) < 32 and c not in "\n\r\t"}
+        assert not bad, f"{path.name}: управляющие символы {bad}"
