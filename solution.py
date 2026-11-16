@@ -77,7 +77,7 @@ def main() -> None:
     kb = KnowledgeBase.from_zip(kb_path, ai=ai)
     kb.build_vectors()
     assistant = LegalAssistant(kb, ai)
-    workers = env_int("MAX_WORKERS", 2, 1, 8)
+    workers = env_int("MAX_WORKERS", 4, 1, 16)
     print(f"Вопросы: {len(questions)}; документы: {len(kb.documents)}; фрагменты: {len(kb.chunks)}; "
           f"поиск: {kb.search_mode}; LLM: {'да' if ai.has_llm else 'нет'}; потоков: {workers}", flush=True)
 

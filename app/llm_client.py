@@ -48,7 +48,7 @@ class AIClient:
         self.reranker_model = env("RERANKER_MODEL", "qwen/qwen3-reranker-8b")
         self.temperature = env_float("TEMPERATURE", 0.0)
         self.max_tokens = env_int("MAX_TOKENS", 6000, 256, 16000)
-        self.retries = env_int("LLM_RETRIES", 2, 0, 5)
+        self.retries = env_int("LLM_RETRIES", 3, 0, 6)
         self.http = httpx.Client(timeout=httpx.Timeout(env_int("LLM_TIMEOUT", 90, 5, 600), connect=15.0), transport=transport)
         self.errors: dict[str, str] = {}
         self.failures: dict[str, int] = {}
@@ -100,7 +100,10 @@ class AIClient:
                 if status is not None and status < 500 and status not in (408, 409, 425, 429):
                     break  # ошибка запроса — повтор не поможет
                 if attempt + 1 < attempts:
-                    time.sleep(1.5 * (attempt + 1))
+                    # пауза растёт; при 429/5xx уважаем Retry-After, но не дольше 20 с
+                    header = getattr(getattr(error, "response", None), "headers", {}).get("retry-after", "")
+                    pause = float(header) if header.replace(".", "", 1).isdigit() else 2.0 * (2 ** attempt)
+                    time.sleep(min(pause, 20.0))
         self.errors[endpoint] = f"{type(last_error).__name__}: {last_error}"[:200]
         # Вспомогательный эндпоинт, который не отвечает (нет у провайдера, неверная модель),
         # отключается до перезапуска, чтобы не тратить время на каждый вопрос.

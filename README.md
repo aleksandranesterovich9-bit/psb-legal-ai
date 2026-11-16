@@ -48,8 +48,8 @@ python scripts/build_submission.py   # -> dist/submission.zip
 | `EMB_MODEL` | модель эмбеддингов | `baai/bge-m3` |
 | `RERANKER_MODEL` | реранкер (Qwen3 Reranker 8B) | `qwen/qwen3-reranker-8b` |
 | `TEMPERATURE`, `MAX_TOKENS` | параметры генерации | `0`, `6000` |
-| `MAX_WORKERS` | число параллельных вопросов в `solution.py` | `2` |
-| `LLM_TIMEOUT`, `LLM_RETRIES` | таймаут (с) и число повторов запроса | `90`, `2` |
+| `MAX_WORKERS` | число параллельных вопросов в `solution.py` | `4` |
+| `LLM_TIMEOUT`, `LLM_RETRIES` | таймаут (с) и число повторов запроса | `90`, `3` |
 | `DISABLE_EMBEDDINGS`, `DISABLE_RERANKER` | `1` — отключить компонент | — |
 | `DATA_DIR`, `OUTPUT_PATH` | каталог данных и файл результата `solution.py` | `data`, `submission.csv` |
 | `TIME_BUDGET_SEC` | бюджет времени `solution.py` (лимит платформы 20 мин): после него API не вызывается, остальные ответы собираются без LLM | `960` |
