@@ -51,7 +51,6 @@ python scripts/build_submission.py   # -> dist/submission.zip
 | `DISABLE_EMBEDDINGS`, `DISABLE_RERANKER` | `1` — отключить компонент | — |
 | `DATA_DIR`, `OUTPUT_PATH` | каталог данных и файл результата `solution.py` | `data`, `submission.csv` |
 | `TIME_BUDGET_SEC` | бюджет времени `solution.py` (лимит платформы 20 мин): после него API не вызывается, остальные ответы собираются без LLM | `960` |
-| `DATA_DIR` | каталог с `questions.csv` и `knowledge-base.zip` для `solution.py` | `data` |
 | `KB_PATH`, `APP_PORT` | архив базы знаний и порт веб-приложения | `data/documents/knowledge-base.zip`, `8000` |
 
 Используемый внешний сервис — только API организаторов (три вызова: `/chat/completions`, `/embeddings`, `/rerank`). Ключи кладутся в `.env`, который исключён из репозитория и образа.
