@@ -206,3 +206,46 @@ def test_submission_zip_is_flat(tmp_path):
     names = zipfile.ZipFile(root / "dist" / "submission.zip").namelist()
     assert "solution.py" in names and "requirements.txt" in names
     assert not any("/" in name for name in names) and not any(name.endswith((".csv", ".zip")) for name in names)
+
+
+def test_reranker_falls_back_to_alternative_model_name(monkeypatch):
+    import json
+
+    import httpx
+
+    from app.llm_client import AIClient
+
+    monkeypatch.setenv("LLM_BASE_URL", "http://llm.test")
+    monkeypatch.setenv("LLM_API_KEY", "x")
+    monkeypatch.setenv("RERANKER_MODEL", "unknown/model")
+    seen = []
+
+    def handler(request):
+        model = json.loads(request.content)["model"]
+        seen.append(model)
+        if model != "cohere/rerank-5-fast":
+            return httpx.Response(404, json={"error": "model not found"})
+        return httpx.Response(200, json={"results": [{"index": 1, "relevance_score": 0.9}, {"index": 0, "relevance_score": 0.1}]})
+
+    ai = AIClient(transport=httpx.MockTransport(handler))
+    assert ai.rerank("q", ["a", "b"], 2)[0][0] == 1
+    assert ai.reranker_model == "cohere/rerank-5-fast" and "/rerank" not in ai.disabled
+    assert ai.rerank("q", ["a", "b"], 2) and seen[-1] == "cohere/rerank-5-fast"  # выбранное имя запоминается
+
+
+def test_reranker_disabled_only_after_repeated_failure(monkeypatch):
+    import httpx
+
+    from app.llm_client import AIClient
+
+    monkeypatch.setenv("LLM_BASE_URL", "http://llm.test")
+    monkeypatch.setenv("LLM_API_KEY", "x")
+    ai = AIClient(transport=httpx.MockTransport(lambda request: httpx.Response(404, json={})))
+    for _ in range(2):
+        try:
+            ai.rerank("q", ["a"], 1)
+        except RuntimeError:
+            pass
+        if _ == 0:
+            assert "/rerank" not in ai.disabled
+    assert "/rerank" in ai.disabled

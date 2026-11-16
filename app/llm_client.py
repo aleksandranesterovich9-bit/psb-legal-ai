@@ -16,6 +16,7 @@ from typing import Any
 import httpx
 
 logger = logging.getLogger(__name__)
+RERANKER_FALLBACKS = ("qwen/qwen3-reranker-8b", "cohere/rerank-5-fast")
 
 
 def env(name: str, default: str = "") -> str:
@@ -76,7 +77,7 @@ class AIClient:
     def close(self) -> None:
         self.http.close()
 
-    def _post(self, endpoint: str, payload: dict[str, Any], api_key: str, retries: int | None = None) -> dict[str, Any]:
+    def _post(self, endpoint: str, payload: dict[str, Any], api_key: str, retries: int | None = None, soft: bool = False) -> dict[str, Any]:
         if self.expired:
             raise RuntimeError("Исчерпан бюджет времени запуска.")
         if not self.base_url or not api_key:
@@ -105,6 +106,8 @@ class AIClient:
                     pause = float(header) if header.replace(".", "", 1).isdigit() else 2.0 * (2 ** attempt)
                     time.sleep(min(pause, 20.0))
         self.errors[endpoint] = f"{type(last_error).__name__}: {last_error}"[:200]
+        if soft:  # вызывающий код сам решит, отключать ли эндпоинт (перебор моделей)
+            raise RuntimeError(f"Запрос {endpoint} не выполнен: {self.errors[endpoint]}")
         # Вспомогательный эндпоинт, который не отвечает (нет у провайдера, неверная модель),
         # отключается до перезапуска, чтобы не тратить время на каждый вопрос.
         self.failures[endpoint] = self.failures.get(endpoint, 0) + 1
@@ -169,9 +172,27 @@ class AIClient:
 
         if not documents:
             return []
-        data = self._post("/rerank", {
-            "model": self.reranker_model, "query": query, "documents": documents, "top_n": min(top_n, len(documents)),
-        }, self.rerank_key, retries=1)
+        # В регламенте указан Qwen3 Reranker 8B, в примере организаторов — cohere/rerank-5-fast:
+        # если имя модели у провайдера не найдено, пробуем запасные, затем отключаем реранкер.
+        models = [self.reranker_model] + [m for m in RERANKER_FALLBACKS if m != self.reranker_model]
+        data = None
+        for model in models:
+            try:
+                data = self._post("/rerank", {
+                    "model": model, "query": query, "documents": documents, "top_n": min(top_n, len(documents)),
+                }, self.rerank_key, retries=1, soft=True)
+                if model != self.reranker_model:
+                    logger.warning("Реранкер: модель %s недоступна, используется %s", self.reranker_model, model)
+                    self.reranker_model = model
+                break
+            except RuntimeError as error:
+                last = error
+        if data is None:
+            self.failures["/rerank"] = self.failures.get("/rerank", 0) + 1
+            if self.failures["/rerank"] >= 2:  # одиночный сбой (таймаут, 5xx) не отключает реранкер
+                self.disabled.add("/rerank")
+                logger.warning("Эндпоинт /rerank отключён: %s", last)
+            raise last
         items = data.get("results", data.get("data"))
         if not isinstance(items, list):
             raise RuntimeError("Некорректный ответ rerank.")
